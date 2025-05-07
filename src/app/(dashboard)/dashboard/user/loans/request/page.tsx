@@ -97,11 +97,11 @@ export default function RequestLoanPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="amount">Loan Amount (USD)</Label>
+              <Label htmlFor="amount">Loan Amount (KES)</Label>
               <Input
                 id="amount"
                 type="number"
-                placeholder="e.g., 1000"
+                placeholder="e.g., 100000"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 min="1"

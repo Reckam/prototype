@@ -8,11 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
-import { getUsers, getSavingsByUserId, updateUserSavings as dataUpdateUserSavings, addSavingTransaction } from "@/lib/dataService";
+import { getUsers, getSavingsByUserId, addSavingTransaction } from "@/lib/dataService";
 import { useToast } from "@/hooks/use-toast";
 import type { User, SavingTransaction } from "@/types";
-import { Edit3, PiggyBank, PlusCircle, RefreshCw } from "lucide-react";
+import { Edit3, PiggyBank, PlusCircle, RefreshCw, CalendarIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { getCurrentAdmin } from "@/lib/authService";
@@ -28,9 +31,9 @@ export default function ManageSavingsRecordsPage() {
   const [selectedUser, setSelectedUser] = useState<UserWithSavings | null>(null);
   const [transactionType, setTransactionType] = useState<'deposit' | 'withdrawal'>('deposit');
   const [transactionAmount, setTransactionAmount] = useState<string>("");
+  const [transactionDate, setTransactionDate] = useState<Date>(new Date());
   const [adminId, setAdminId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-
 
   const { toast } = useToast();
 
@@ -64,6 +67,7 @@ export default function ManageSavingsRecordsPage() {
     setSelectedUser(user);
     setTransactionAmount("");
     setTransactionType("deposit");
+    setTransactionDate(new Date()); // Reset date to today
   };
 
   const handleAddTransaction = async () => {
@@ -76,19 +80,20 @@ export default function ManageSavingsRecordsPage() {
       toast({ variant: "destructive", title: "Invalid Amount", description: "Please enter a valid positive amount." });
       return;
     }
+    if (!transactionDate) {
+        toast({ variant: "destructive", title: "Invalid Date", description: "Please select a valid transaction date." });
+        return;
+    }
 
     try {
-      // This will also add an audit log entry.
-      // For mock, the updateUserSavings function in dataService.ts handles audit logging for this type of "update".
-      // If we want a specific 'add transaction' audit log, we'd call addAuditLog here or ensure addSavingTransaction does it.
       await addSavingTransaction({
           userId: selectedUser.id,
           amount: amount,
-          date: new Date().toISOString(),
+          date: transactionDate.toISOString(),
           type: transactionType
       });
 
-      toast({ title: "Transaction Added", description: `${transactionType.charAt(0).toUpperCase() + transactionType.slice(1)} of ${formatCurrency(amount)} for ${selectedUser.name} recorded.` });
+      toast({ title: "Transaction Added", description: `${transactionType.charAt(0).toUpperCase() + transactionType.slice(1)} of ${formatCurrency(amount)} for ${selectedUser.name} recorded on ${format(transactionDate, "PPP")}.` });
       setSelectedUser(null);
       fetchUserSavingsData(); // Refresh data
     } catch (error) {
@@ -98,7 +103,7 @@ export default function ManageSavingsRecordsPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+    return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(amount);
   };
 
   const filteredUsers = usersWithSavings.filter(user =>
@@ -197,6 +202,31 @@ export default function ManageSavingsRecordsPage() {
                                   className="col-span-3"
                                   placeholder="0.00"
                                 />
+                              </div>
+                              <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="transaction-date" className="text-right">Date</Label>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant={"outline"}
+                                      className={cn(
+                                        "col-span-3 justify-start text-left font-normal",
+                                        !transactionDate && "text-muted-foreground"
+                                      )}
+                                    >
+                                      <CalendarIcon className="mr-2 h-4 w-4" />
+                                      {transactionDate ? format(transactionDate, "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                      mode="single"
+                                      selected={transactionDate}
+                                      onSelect={(date) => { if (date) setTransactionDate(date); }}
+                                      initialFocus
+                                    />
+                                  </PopoverContent>
+                                </Popover>
                               </div>
                             </div>
                             <DialogFooter>

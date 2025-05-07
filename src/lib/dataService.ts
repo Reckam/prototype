@@ -11,17 +11,17 @@ let data: AppData = {
     { id: 'admin1', name: 'Super Admin', email: 'admin' }, // Changed email to 'admin'
   ],
   savings: [
-    { id: 's1', userId: 'user1', amount: 1000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 25).toISOString(), type: 'deposit' },
-    { id: 's2', userId: 'user1', amount: 500, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15).toISOString(), type: 'deposit' },
-    { id: 's3', userId: 'user2', amount: 2000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 50).toISOString(), type: 'deposit' },
+    { id: 's1', userId: 'user1', amount: 100000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 25).toISOString(), type: 'deposit' },
+    { id: 's2', userId: 'user1', amount: 50000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15).toISOString(), type: 'deposit' },
+    { id: 's3', userId: 'user2', amount: 200000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 50).toISOString(), type: 'deposit' },
   ],
   profits: [
-    { id: 'p1', userId: 'user1', amount: 50, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(), description: 'Monthly interest' },
-    { id: 'p2', userId: 'user2', amount: 100, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(), description: 'Quarterly bonus' },
+    { id: 'p1', userId: 'user1', amount: 5000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(), description: 'Monthly interest' },
+    { id: 'p2', userId: 'user2', amount: 10000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(), description: 'Quarterly bonus' },
   ],
   loans: [
-    { id: 'l1', userId: 'user1', userName: 'Alice Wonderland', amount: 500, reason: 'Emergency', status: 'pending', requestedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString() },
-    { id: 'l2', userId: 'user2', userName: 'Bob The Builder', amount: 1000, reason: 'Home improvement', status: 'approved', requestedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(), reviewedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 18).toISOString() },
+    { id: 'l1', userId: 'user1', userName: 'Alice Wonderland', amount: 50000, reason: 'Emergency', status: 'pending', requestedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString() },
+    { id: 'l2', userId: 'user2', userName: 'Bob The Builder', amount: 100000, reason: 'Home improvement', status: 'approved', requestedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(), reviewedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 18).toISOString() },
   ],
   auditLogs: [
     { id: 'log1', adminId: 'admin1', adminName: 'Super Admin', action: 'Approved loan #l2 for Bob The Builder', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 18).toISOString() },
@@ -34,7 +34,15 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 // User operations
 export const getUsers = async (): Promise<User[]> => { await delay(100); return [...data.users]; };
 export const getUserById = async (id: string): Promise<User | undefined> => { await delay(100); return data.users.find(u => u.id === id); };
-export const addUser = async (user: User): Promise<User> => { await delay(100); data.users.push(user); return user; };
+export const addUser = async (user: User): Promise<User> => { 
+  await delay(100); 
+  // Simple check for existing email before adding
+  if (data.users.some(u => u.email === user.email)) {
+    throw new Error("User with this email already exists.");
+  }
+  data.users.push(user); 
+  return user; 
+};
 export const updateUser = async (id: string, updates: Partial<User>): Promise<User | undefined> => {
   await delay(100);
   const userIndex = data.users.findIndex(u => u.id === id);
@@ -66,6 +74,19 @@ export const addSavingTransaction = async (transaction: Omit<SavingTransaction, 
   await delay(100);
   const newTransaction = { ...transaction, id: `s${Date.now()}` };
   data.savings.push(newTransaction);
+
+  // Add to audit log
+  const admin = data.admins[0]; // Assuming first admin is performing the action for this mock
+  const user = data.users.find(u => u.id === transaction.userId);
+  if (admin && user) {
+    addAuditLog({
+        adminId: admin.id,
+        adminName: admin.name,
+        action: `Added ${transaction.type} of ${transaction.amount} for user ${user.name}`,
+        timestamp: new Date().toISOString(),
+        details: { transactionId: newTransaction.id, userId: transaction.userId, amount: transaction.amount, type: transaction.type, date: transaction.date }
+    });
+  }
   return newTransaction;
 };
 export const updateUserSavings = async (userId: string, amount: number, date: string): Promise<SavingTransaction | undefined> => {
@@ -86,8 +107,9 @@ export const updateUserSavings = async (userId: string, amount: number, date: st
     addAuditLog({
         adminId: admin.id,
         adminName: admin.name,
-        action: `Updated savings for user ID ${userId} with amount ${amount}`,
+        action: `Adjusted savings for user ID ${userId} to ${amount}`, // Changed action wording
         timestamp: new Date().toISOString(),
+        details: { transactionId: newTransaction.id, userId: userId, newTotalSavings: amount, date: date }
     });
   }
   return newTransaction;
