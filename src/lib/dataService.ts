@@ -8,7 +8,7 @@ let data: AppData = {
     { id: 'user2', name: 'Bob The Builder', email: 'bob@example.com', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString() },
   ],
   admins: [
-    { id: 'admin1', name: 'Super Admin', email: 'admin@example.com' },
+    { id: 'admin1', name: 'Super Admin', email: 'admin' }, // Changed email to 'admin'
   ],
   savings: [
     { id: 's1', userId: 'user1', amount: 1000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 25).toISOString(), type: 'deposit' },

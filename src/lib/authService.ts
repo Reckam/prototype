@@ -1,3 +1,4 @@
+
 // Mock authentication service
 "use client"; // Required for localStorage access
 
@@ -47,12 +48,24 @@ export const getCurrentUser = (): User | null => {
 // Admin Authentication
 export const loginAdmin = async (email: string, passwordPlain: string): Promise<{ admin?: Admin, error?: string }> => {
   const admins = await getAdmins();
-  const admin = admins.find(a => a.email === email); // Password check is omitted for mock
+  const admin = admins.find(a => a.email === email); 
+  
   if (admin) {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(admin));
+    // Specific check for the admin with email 'admin' and password '0000'
+    if (admin.email === "admin" && passwordPlain === "0000") {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(admin));
+      }
+      return { admin };
+    } 
+    // For other admin accounts (if any), the mock doesn't check passwords.
+    // This block allows other admins to log in without a password check for testing purposes if their email isn't 'admin'.
+    else if (admin.email !== "admin") {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(admin));
+        }
+        return { admin };
     }
-    return { admin };
   }
   return { error: "Invalid admin credentials" };
 };
