@@ -5,7 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserCircle, Edit, Save } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserCircle, Edit, Save, Camera } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { getCurrentUser, loginUser } from "@/lib/authService";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +19,8 @@ export default function UserProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | undefined>(undefined);
+  const [newProfilePhotoPreview, setNewProfilePhotoPreview] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -27,21 +31,42 @@ export default function UserProfilePage() {
       setUser(currentUser);
       setName(currentUser.name);
       setEmail(currentUser.email);
+      setProfilePhotoUrl(currentUser.profilePhotoUrl);
+      setNewProfilePhotoPreview(currentUser.profilePhotoUrl || null);
     }
     setIsLoading(false);
   }, []);
 
   const handleEditToggle = () => setIsEditing(!isEditing);
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewProfilePhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setNewProfilePhotoPreview(profilePhotoUrl || null); // Revert to original if selection cancelled
+    }
+  };
+
   const handleSaveProfile = async () => {
     if (!user) return;
     setIsLoading(true);
     try {
-      const updatedUser = await updateUserData(user.id, { name, email });
+      // In a real app, if newProfilePhotoPreview is a data URI from a new file,
+      // it would be uploaded to a storage service first, and its URL would be used.
+      // For this mock, we'll directly use newProfilePhotoPreview as the URL.
+      const updatedUserData: Partial<User> = { name, email, profilePhotoUrl: newProfilePhotoPreview || undefined };
+      
+      const updatedUser = await updateUserData(user.id, updatedUserData);
       if (updatedUser) {
         // Re-login to update localStorage, in a real app this would be a session update
         await loginUser(updatedUser.email, "mockPassword"); // Mock password, real app would handle session
         setUser(updatedUser);
+        setProfilePhotoUrl(updatedUser.profilePhotoUrl); // Update displayed photo
         toast({ title: "Profile Updated", description: "Your profile details have been saved." });
         setIsEditing(false);
       } else {
@@ -87,6 +112,28 @@ export default function UserProfilePage() {
           <CardDescription>View and update your personal details.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="flex flex-col items-center space-y-4">
+            <Avatar className="h-32 w-32 border-4 border-primary shadow-lg">
+              <AvatarImage src={newProfilePhotoPreview || profilePhotoUrl} alt={user.name} data-ai-hint="user avatar" />
+              <AvatarFallback className="text-4xl">
+                {user.name ? user.name.charAt(0).toUpperCase() : <UserCircle />}
+              </AvatarFallback>
+            </Avatar>
+            {isEditing && (
+              <div className="w-full max-w-xs">
+                <Label htmlFor="profile-photo-edit" className="text-sm font-medium text-muted-foreground">Change Profile Photo</Label>
+                <Input
+                  id="profile-photo-edit"
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                  disabled={isLoading}
+                />
+              </div>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="name">Full Name</Label>
             <Input
@@ -118,7 +165,7 @@ export default function UserProfilePage() {
             />
           </div>
           {isEditing && (
-            <Card className="mt-6 bg-secondary/50">
+            <Card className="mt-6 bg-secondary/10 border-border shadow-inner">
               <CardHeader>
                 <CardTitle className="text-lg">Change Password</CardTitle>
               </CardHeader>
@@ -145,3 +192,4 @@ export default function UserProfilePage() {
     </DashboardLayout>
   );
 }
+

@@ -102,6 +102,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
   const profileName = role === "user" ? currentUser?.name : currentAdmin?.name;
   const profileEmail = role === "user" ? currentUser?.email : currentAdmin?.email;
   const profileRoleIcon = role === "user" ? UserCircle : ShieldCheck;
+  const profilePhoto = role === "user" ? currentUser?.profilePhotoUrl : `https://avatar.vercel.sh/${profileEmail}.png?s=40`; // Admin uses vercel avatar
 
 
   if (!isClient || (role === "user" && !currentUser) || (role === "admin" && !currentAdmin)) {
@@ -155,8 +156,8 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="rounded-full">
                 <Avatar>
-                  <AvatarImage src={`https://avatar.vercel.sh/${profileEmail}.png?s=40`} alt={profileName || "User"} />
-                  <AvatarFallback>{profileName?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+                  <AvatarImage src={profilePhoto || undefined} alt={profileName || "User"} data-ai-hint="user avatar" />
+                  <AvatarFallback>{profileName?.charAt(0).toUpperCase() || (role === "user" ? "U" : "A")}</AvatarFallback>
                 </Avatar>
                 <span className="sr-only">Toggle user menu</span>
               </Button>
@@ -193,3 +194,4 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
     </div>
   );
 }
+

@@ -3,6 +3,7 @@ export interface User {
   email: string;
   name: string;
   createdAt: string;
+  profilePhotoUrl?: string; // Added for profile photo
 }
 
 export interface Admin {
@@ -58,3 +59,4 @@ export interface AppData {
   loans: LoanRequest[];
   auditLogs: AuditLogEntry[];
 }
+

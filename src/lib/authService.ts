@@ -7,13 +7,19 @@ import { USER_STORAGE_KEY, ADMIN_STORAGE_KEY } from '@/lib/constants';
 import { getUsers, getAdmins, addUser as addDataUser } from './dataService'; // Assuming dataService is compatible with server/client as needed
 
 // User Authentication
-export const registerUser = async (name: string, email: string, passwordPlain: string): Promise<{ user?: User, error?: string }> => {
+export const registerUser = async (name: string, email: string, passwordPlain: string, profilePhotoUrl?: string): Promise<{ user?: User, error?: string }> => {
   // In a real app, hash the password before storing
   const existingUser = (await getUsers()).find(u => u.email === email);
   if (existingUser) {
     return { error: "User already exists with this email." };
   }
-  const newUser: User = { id: Date.now().toString(), name, email, createdAt: new Date().toISOString() };
+  const newUser: User = { 
+    id: Date.now().toString(), 
+    name, 
+    email, 
+    createdAt: new Date().toISOString(),
+    profilePhotoUrl // Add profile photo URL
+  };
   await addDataUser(newUser); // Add to mock DB
   return { user: newUser };
 };
@@ -40,7 +46,7 @@ export const logoutUser = (): void => {
 export const getCurrentUser = (): User | null => {
   if (typeof window !== 'undefined') {
     const userJson = localStorage.getItem(USER_STORAGE_KEY);
-    return userJson ? JSON.parse(userJson) : null;
+    return userJson ? JSON.parse(userJson) as User : null;
   }
   return null;
 };
@@ -79,7 +85,7 @@ export const logoutAdmin = (): void => {
 export const getCurrentAdmin = (): Admin | null => {
   if (typeof window !== 'undefined') {
     const adminJson = localStorage.getItem(ADMIN_STORAGE_KEY);
-    return adminJson ? JSON.parse(adminJson) : null;
+    return adminJson ? JSON.parse(adminJson) as Admin : null;
   }
   return null;
 };

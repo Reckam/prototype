@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { registerUser } from "@/lib/authService";
 import { APP_NAME } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Camera } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 
@@ -19,7 +20,21 @@ export default function UserRegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setProfilePhotoPreview(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +47,7 @@ export default function UserRegisterPage() {
       return;
     }
     setIsLoading(true);
-    const { user, error } = await registerUser(name, email, password);
+    const { user, error } = await registerUser(name, email, password, profilePhotoPreview || undefined);
     setIsLoading(false);
 
     if (user) {
@@ -100,6 +115,30 @@ export default function UserRegisterPage() {
               required
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="profile-photo">Profile Photo (Optional)</Label>
+            <Input
+              id="profile-photo"
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoChange}
+              className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+            />
+             {profilePhotoPreview ? (
+              <Image
+                src={profilePhotoPreview}
+                alt="Profile preview"
+                width={100}
+                height={100}
+                data-ai-hint="user avatar"
+                className="rounded-full aspect-square object-cover mx-auto mt-2 border-2 border-primary"
+              />
+            ) : (
+                <div className="w-24 h-24 mx-auto mt-2 rounded-full bg-muted flex items-center justify-center border-2 border-dashed border-muted-foreground">
+                    <Camera className="h-10 w-10 text-muted-foreground" />
+                </div>
+            )}
+          </div>
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? "Registering..." : "Register"}
             {!isLoading && <UserPlus className="ml-2 h-4 w-4" />}
@@ -120,3 +159,4 @@ export default function UserRegisterPage() {
     </Card>
   );
 }
+

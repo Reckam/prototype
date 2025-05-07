@@ -5,20 +5,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShieldCheck, Edit, Save } from "lucide-react";
+import { ShieldCheck, Edit, Save, KeyRound } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getCurrentAdmin } from "@/lib/authService";
+import { getCurrentAdmin, loginAdmin } from "@/lib/authService"; // Assuming loginAdmin can re-auth or update session
 import { useToast } from "@/hooks/use-toast";
 import type { Admin } from "@/types";
-// Admin profile updates would typically go to a secure admin management endpoint.
-// For this mock, we'll assume there's no direct update mechanism for admin profiles via UI for simplicity.
+// Admin profile updates (name/email) would typically go to a secure admin management endpoint.
+// For this mock, we'll assume there's no direct update mechanism for admin name/email via UI for simplicity.
 
 export default function AdminProfilePage() {
   const [admin, setAdmin] = useState<Admin | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [isEditing, setIsEditing] = useState(false); // Admin profile editing disabled for mock
+  // const [isEditing, setIsEditing] = useState(false); // Name/Email editing kept disabled as per original logic.
+  
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  
   const [isLoading, setIsLoading] = useState(true);
+  const [isPasswordLoading, setIsPasswordLoading] = useState(false);
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -31,11 +38,52 @@ export default function AdminProfilePage() {
     setIsLoading(false);
   }, []);
 
-  const handleSaveProfile = async () => {
-    // Admin profile updates are typically more restricted and handled differently.
-    // For this mock, we'll just show a toast message.
-    toast({ title: "Profile Update (Mock)", description: "Admin profile updates would be handled by a super-admin or system process." });
-    setIsEditing(false);
+  // const handleSaveProfile = async () => {
+  //   // Admin profile updates are typically more restricted and handled differently.
+  //   // For this mock, we'll just show a toast message.
+  //   toast({ title: "Profile Update (Mock)", description: "Admin name/email updates would be handled by a super-admin or system process." });
+  //   setIsEditing(false);
+  // };
+
+  const handleUpdatePassword = async () => {
+    if (!admin) {
+      toast({ variant: "destructive", title: "Error", description: "Admin not found." });
+      return;
+    }
+    if (admin.email === "admin" && currentPassword !== "0000") {
+      toast({ variant: "destructive", title: "Password Update Failed", description: "Current password incorrect." });
+      return;
+    }
+    if (!newPassword || newPassword.length < 4) { // Basic length check for new password
+        toast({ variant: "destructive", title: "Password Update Failed", description: "New password must be at least 4 characters long." });
+        return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      toast({ variant: "destructive", title: "Password Update Failed", description: "New passwords do not match." });
+      return;
+    }
+
+    setIsPasswordLoading(true);
+    // Mock password update
+    // In a real app, this would involve an API call to securely update the password.
+    // For admin 'admin', we might update the mock password if we were to persist it, but here we just simulate.
+    // For this example, we'll just show a success toast.
+    // If we wanted to update the mock password for the 'admin' user for subsequent logins in this session,
+    // we would need to modify how '0000' is handled in loginAdmin or store the new mock password.
+    // For simplicity, we're not changing the "0000" master password for the 'admin' user in this mock.
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    toast({ title: "Password Updated", description: "Your password has been successfully updated. (Mock)" });
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmNewPassword("");
+    setIsPasswordLoading(false);
+
+    // If loginAdmin was designed to re-authenticate and update localStorage with new details (including a hypothetical new password hash)
+    // you might call it here. For this mock, logout/login is a simpler way to "refresh" session if needed.
+    // For now, we assume the password is "changed" but the 'admin' user's login password remains "0000" for the mock.
   };
   
   if (isLoading || !admin) {
@@ -55,7 +103,7 @@ export default function AdminProfilePage() {
         <h1 className="text-2xl font-semibold flex items-center">
           <ShieldCheck className="mr-3 h-6 w-6 text-primary" /> Admin Profile
         </h1>
-        {/* Admin editing is disabled for this mock
+        {/* Name/Email editing button remains commented out as per original logic (not part of this request)
         <Button onClick={isEditing ? handleSaveProfile : () => setIsEditing(true)} disabled={isLoading && isEditing}>
           {isEditing ? (
             isLoading ? <><Save className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" /> Save Changes</>
@@ -77,17 +125,17 @@ export default function AdminProfilePage() {
             <Input
               id="name"
               value={name}
-              disabled={!isEditing || isLoading}
-              className="text-base bg-muted" // Use bg-muted for disabled inputs
+              disabled // Keep name editing disabled as per original
+              className="text-base bg-muted" 
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Email Address</Label>
+            <Label htmlFor="email">Email Address (Username)</Label>
             <Input
               id="email"
               type="email"
               value={email}
-              disabled={!isEditing || isLoading}
+              disabled // Keep email editing disabled
               className="text-base bg-muted"
             />
           </div>
@@ -101,25 +149,57 @@ export default function AdminProfilePage() {
             />
           </div>
           
-          <Card className="mt-6 bg-secondary/50">
+          <Card className="mt-6 bg-secondary/10 border-border shadow-inner">
             <CardHeader>
-              <CardTitle className="text-lg">Change Password</CardTitle>
+              <CardTitle className="text-lg flex items-center"><KeyRound className="mr-2 h-5 w-5 text-primary"/> Change Password</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="current-password">Current Password</Label>
-                <Input id="current-password" type="password" disabled={isLoading} placeholder="Enter current password"/>
+                <Input 
+                    id="current-password" 
+                    type="password" 
+                    disabled={isPasswordLoading} 
+                    placeholder="Enter current password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="new-password">New Password</Label>
-                <Input id="new-password" type="password" disabled={isLoading} placeholder="Enter new password"/>
+                <Input 
+                    id="new-password" 
+                    type="password" 
+                    disabled={isPasswordLoading} 
+                    placeholder="Enter new password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirm-new-password">Confirm New Password</Label>
-                <Input id="confirm-new-password" type="password" disabled={isLoading} placeholder="Confirm new password"/>
+                <Input 
+                    id="confirm-new-password" 
+                    type="password" 
+                    disabled={isPasswordLoading} 
+                    placeholder="Confirm new password"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                />
               </div>
-              <Button variant="outline" disabled={isLoading}>Update Password</Button>
-              <p className="text-xs text-muted-foreground">Password change functionality is illustrative for this mock. Admin password changes often have stricter security protocols.</p>
+              <Button variant="outline" disabled={isPasswordLoading} onClick={handleUpdatePassword}>
+                {isPasswordLoading ? (
+                    <> <Save className="mr-2 h-4 w-4 animate-spin" /> Updating...</>
+                ) : (
+                    <> <Save className="mr-2 h-4 w-4" /> Update Password </>
+                )}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                {admin.email === "admin" 
+                  ? "For the default 'admin' user, the current password is '0000'. " 
+                  : "Enter your current password to set a new one. "}
+                Password change functionality is for demonstration.
+              </p>
             </CardContent>
           </Card>
         </CardContent>
@@ -127,3 +207,4 @@ export default function AdminProfilePage() {
     </DashboardLayout>
   );
 }
+
