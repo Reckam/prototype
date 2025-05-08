@@ -1,3 +1,4 @@
+
 "use client";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -5,14 +6,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Settings, SlidersHorizontal, Palette, Shield } from "lucide-react";
+import { Settings, SlidersHorizontal, Palette, Shield, PercentSquare } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+
+const PROFIT_RATE_STORAGE_KEY = "savings_central_profit_rate";
+const LOAN_INTEREST_RATE_STORAGE_KEY = "savings_central_loan_interest_rate";
+const NEW_USER_APPROVAL_STORAGE_KEY = "savings_central_new_user_approval";
+
 
 export default function AdminSettingsPage() {
-  // Mock settings - in a real app, these would be fetched and saved
   const [newUserApprovalRequired, setNewUserApprovalRequired] = useState(false);
   const [loanInterestRate, setLoanInterestRate] = useState(5.0); // Example percentage
+  const [profitDistributionRate, setProfitDistributionRate] = useState(2.5); // Example percentage for profits
   const [darkMode, setDarkMode] = useState(false);
   const { toast } = useToast();
 
@@ -25,12 +32,25 @@ export default function AdminSettingsPage() {
     } else {
       document.documentElement.classList.remove('dark');
     }
-    // Load other admin settings from a config service or API
+
+    const savedLoanInterestRate = localStorage.getItem(LOAN_INTEREST_RATE_STORAGE_KEY);
+    if (savedLoanInterestRate) setLoanInterestRate(parseFloat(savedLoanInterestRate));
+    
+    const savedProfitRate = localStorage.getItem(PROFIT_RATE_STORAGE_KEY);
+    if (savedProfitRate) setProfitDistributionRate(parseFloat(savedProfitRate));
+
+    const savedNewUserApproval = localStorage.getItem(NEW_USER_APPROVAL_STORAGE_KEY);
+    if (savedNewUserApproval) setNewUserApprovalRequired(savedNewUserApproval === 'true');
+
+
   }, []);
 
-  const handleSettingChange = (setter: React.Dispatch<React.SetStateAction<any>>, value: any, settingName: string) => {
+  const handleSettingChange = (setter: React.Dispatch<React.SetStateAction<any>>, value: any, settingName: string, storageKey?: string) => {
     setter(value);
     toast({ title: "Setting Updated", description: `${settingName} preference saved.` });
+    if (storageKey && typeof window !== 'undefined') {
+      localStorage.setItem(storageKey, String(value));
+    }
     // API call to save setting
   };
   
@@ -46,13 +66,19 @@ export default function AdminSettingsPage() {
     toast({ title: "Theme Updated", description: `Theme set to ${isDark ? 'Dark' : 'Light'} Mode.`});
   };
 
+  const saveAllSettings = () => {
+    // This function would typically send all settings to a backend API
+    // For localStorage, changes are already saved individually by handleSettingChange
+    toast({title: "Settings Saved (Mock)", description: "All current settings would be saved to the server."});
+  }
+
   return (
     <DashboardLayout role="admin">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold flex items-center">
           <Settings className="mr-3 h-6 w-6 text-primary" /> System Settings
         </h1>
-        <Button onClick={() => toast({title: "Settings Saved (Mock)", description: "All current settings would be saved to the server."})}>
+        <Button onClick={saveAllSettings}>
             Save All Settings
         </Button>
       </div>
@@ -72,7 +98,7 @@ export default function AdminSettingsPage() {
               <Switch
                 id="new-user-approval"
                 checked={newUserApprovalRequired}
-                onCheckedChange={(checked) => handleSettingChange(setNewUserApprovalRequired, checked, "New User Approval")}
+                onCheckedChange={(checked) => handleSettingChange(setNewUserApprovalRequired, checked, "New User Approval", NEW_USER_APPROVAL_STORAGE_KEY)}
               />
             </div>
             <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -80,11 +106,25 @@ export default function AdminSettingsPage() {
                 <Label htmlFor="loan-interest-rate" className="font-medium">Default Loan Interest Rate (%)</Label>
                 <p className="text-sm text-muted-foreground">Set the base interest rate for new loans.</p>
               </div>
-              <input 
+              <Input 
                 type="number" 
                 id="loan-interest-rate" 
                 value={loanInterestRate} 
-                onChange={(e) => handleSettingChange(setLoanInterestRate, parseFloat(e.target.value), "Loan Interest Rate")}
+                onChange={(e) => handleSettingChange(setLoanInterestRate, parseFloat(e.target.value), "Loan Interest Rate", LOAN_INTEREST_RATE_STORAGE_KEY)}
+                className="w-20 p-2 border rounded-md text-sm bg-background"
+                step="0.1"
+              />
+            </div>
+             <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div>
+                <Label htmlFor="profit-distribution-rate" className="font-medium">Profit Distribution Rate (%)</Label>
+                <p className="text-sm text-muted-foreground">Set the rate at which profits are distributed to users.</p>
+              </div>
+              <Input 
+                type="number" 
+                id="profit-distribution-rate" 
+                value={profitDistributionRate} 
+                onChange={(e) => handleSettingChange(setProfitDistributionRate, parseFloat(e.target.value), "Profit Distribution Rate", PROFIT_RATE_STORAGE_KEY)}
                 className="w-20 p-2 border rounded-md text-sm bg-background"
                 step="0.1"
               />

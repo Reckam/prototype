@@ -1,3 +1,4 @@
+
 // Mock data service
 import type { User, Admin, SavingTransaction, ProfitEntry, LoanRequest, AuditLogEntry, AppData, LoanStatus } from '@/types';
 
@@ -11,17 +12,17 @@ let data: AppData = {
     { id: 'admin1', name: 'Super Admin', email: 'admin' }, // Changed email to 'admin'
   ],
   savings: [
-    { id: 's1', userId: 'user1', amount: 100000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 25).toISOString(), type: 'deposit' },
-    { id: 's2', userId: 'user1', amount: 50000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15).toISOString(), type: 'deposit' },
-    { id: 's3', userId: 'user2', amount: 200000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 50).toISOString(), type: 'deposit' },
+    { id: 's1', userId: 'user1', amount: 3500000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 25).toISOString(), type: 'deposit' }, // UGX amounts
+    { id: 's2', userId: 'user1', amount: 1750000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15).toISOString(), type: 'deposit' }, // UGX amounts
+    { id: 's3', userId: 'user2', amount: 7000000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 50).toISOString(), type: 'deposit' }, // UGX amounts
   ],
   profits: [
-    { id: 'p1', userId: 'user1', amount: 5000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(), description: 'Monthly interest' },
-    { id: 'p2', userId: 'user2', amount: 10000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(), description: 'Quarterly bonus' },
+    { id: 'p1', userId: 'user1', amount: 175000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(), description: 'Monthly interest' }, // UGX amounts
+    { id: 'p2', userId: 'user2', amount: 350000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(), description: 'Quarterly bonus' }, // UGX amounts
   ],
   loans: [
-    { id: 'l1', userId: 'user1', userName: 'Alice Wonderland', amount: 50000, reason: 'Emergency', status: 'pending', requestedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString() },
-    { id: 'l2', userId: 'user2', userName: 'Bob The Builder', amount: 100000, reason: 'Home improvement', status: 'approved', requestedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(), reviewedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 18).toISOString() },
+    { id: 'l1', userId: 'user1', userName: 'Alice Wonderland', amount: 1750000, reason: 'Emergency', status: 'pending', requestedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString() }, // UGX amounts
+    { id: 'l2', userId: 'user2', userName: 'Bob The Builder', amount: 3500000, reason: 'Home improvement', status: 'approved', requestedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(), reviewedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 18).toISOString() }, // UGX amounts
   ],
   auditLogs: [
     { id: 'log1', adminId: 'admin1', adminName: 'Super Admin', action: 'Approved loan #l2 for Bob The Builder', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 18).toISOString() },

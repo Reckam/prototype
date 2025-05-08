@@ -1,3 +1,4 @@
+
 "use client";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -8,7 +9,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getCurrentAdmin } from "@/lib/authService";
 import type { Admin, User, LoanRequest, AuditLogEntry, SavingTransaction, ProfitEntry } from "@/types";
-import { getAllLoans, getAuditLogs, getUsers, getSavingsByUserId, getProfitsByUserId } from "@/lib/dataService"; // Assuming these functions exist
+import { getAllLoans, getAuditLogs, getUsers, getSavingsByUserId, getProfitsByUserId } from "@/lib/dataService"; 
 import { format } from "date-fns";
 
 export default function AdminDashboardPage() {
@@ -43,15 +44,21 @@ export default function AdminDashboardPage() {
       setPendingLoansCount(loans.filter(loan => loan.status === 'pending').length);
       setRecentLogs(logs.slice(0, 5));
 
-      // Calculate total system savings and profits
       let systemSavings = 0;
       let systemProfits = 0;
       for (const user of users) {
         const userSavings = await getSavingsByUserId(user.id);
         const userProfits = await getProfitsByUserId(user.id);
-        systemSavings += userSavings.filter(s => s.type === 'deposit').reduce((acc, curr) => acc + curr.amount, 0);
-        systemSavings -= userSavings.filter(s => s.type === 'withdrawal').reduce((acc, curr) => acc + curr.amount, 0);
-        systemProfits += userProfits.reduce((acc, curr) => acc + curr.amount, 0);
+        
+        systemSavings += userSavings
+          .filter(s => s.type === 'deposit')
+          .reduce((acc, curr) => acc + curr.amount, 0);
+        systemSavings -= userSavings
+          .filter(s => s.type === 'withdrawal')
+          .reduce((acc, curr) => acc + curr.amount, 0);
+        
+        systemProfits += userProfits
+          .reduce((acc, curr) => acc + curr.amount, 0);
       }
       setTotalSystemSavings(systemSavings);
       setTotalSystemProfits(systemProfits);
@@ -65,7 +72,7 @@ export default function AdminDashboardPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(amount);
+    return new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX' }).format(amount);
   };
 
   if (isLoading) {

@@ -1,3 +1,4 @@
+
 "use client";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -97,11 +98,11 @@ export default function RequestLoanPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="amount">Loan Amount (KES)</Label>
+              <Label htmlFor="amount">Loan Amount (UGX)</Label>
               <Input
                 id="amount"
                 type="number"
-                placeholder="e.g., 100000"
+                placeholder="e.g., 1000000"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 min="1"

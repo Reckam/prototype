@@ -1,3 +1,4 @@
+
 "use client";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -43,7 +44,7 @@ export default function AdminReportsPage() {
       const savingsOverTimeMock = Array(6).fill(0).map((_, i) => {
           const d = new Date();
           d.setMonth(d.getMonth() - i);
-          return { month: d.toLocaleString('default', { month: 'short' }), amount: Math.floor(Math.random() * 500000) + 100000 }; // Increased amounts for KES
+          return { month: d.toLocaleString('default', { month: 'short' }), amount: Math.floor(Math.random() * 15000000) + 3000000 }; // UGX amounts
       }).reverse();
 
 
@@ -77,7 +78,7 @@ export default function AdminReportsPage() {
   };
   
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(amount);
+    return new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX' }).format(amount);
   };
 
   const loanStatusChartData = reportData ? [
@@ -176,7 +177,7 @@ export default function AdminReportsPage() {
              <ResponsiveContainer width="100%" height="100%">
               <BarChart data={reportData.savingsOverTime}>
                 <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(value) => `Sh ${value/1000}k`} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(value) => `UGX ${value/1000000}M`} />
                 <Tooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius)'}} />
                 <Legend wrapperStyle={{fontSize: '12px'}} />
                 <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Total Savings" />

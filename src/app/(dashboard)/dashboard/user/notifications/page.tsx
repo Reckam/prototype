@@ -1,3 +1,4 @@
+
 "use client";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -40,7 +41,7 @@ export default function UserNotificationsPage() {
         .map(loan => ({
           id: `loan_${loan.id}`,
           title: `Loan ${loan.status.charAt(0).toUpperCase() + loan.status.slice(1)}`,
-          message: `Your loan request for KES ${loan.amount.toFixed(2)} has been ${loan.status}.`,
+          message: `Your loan request for UGX ${loan.amount.toFixed(2)} has been ${loan.status}.`,
           timestamp: loan.reviewedAt!,
           read: false, // Mock: in a real app, track read status
           type: 'loan_status',

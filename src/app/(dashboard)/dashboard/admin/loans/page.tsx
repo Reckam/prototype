@@ -1,3 +1,4 @@
+
 "use client";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -74,7 +75,7 @@ export default function ManageLoansPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(amount);
+    return new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX' }).format(amount);
   };
 
   const getStatusBadgeClass = (status: LoanRequest['status']) => {
