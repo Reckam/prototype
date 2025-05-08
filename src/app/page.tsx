@@ -75,11 +75,11 @@ export default function LandingPage() {
                 <div className="inline-block rounded-lg bg-secondary px-3 py-1 text-sm">Key Features</div>
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Everything You Need in One Place</h2>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  {APP_NAME} provides a comprehensive suite of tools for both users and administrators to manage savings and loans efficiently and securely.
+                  {APP_NAME} provides a comprehensive suite of tools for users to manage savings and loans efficiently and securely.
                 </p>
               </div>
             </div>
-            <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:grid-cols-3 mt-12">
+            <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:grid-cols-2 mt-12"> {/* Updated grid-cols to lg:grid-cols-2 */}
               <Card>
                 <CardHeader>
                   <PiggyBank className="h-8 w-8 text-primary mb-2" />
@@ -96,15 +96,6 @@ export default function LandingPage() {
                 </CardHeader>
                 <CardContent>
                   <CardDescription>Easily submit loan requests and track their status (pending, approved, or rejected) with real-time notifications.</CardDescription>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <ShieldCheck className="h-8 w-8 text-primary mb-2" />
-                  <CardTitle>Admin Control</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription>Dedicated admin panel for user management, loan approvals, savings updates, and detailed reporting.</CardDescription>
                 </CardContent>
               </Card>
             </div>
