@@ -4,6 +4,8 @@ export interface User {
   name: string;
   createdAt: string;
   profilePhotoUrl?: string; // Added for profile photo
+  password?: string; // Added for storing mock password
+  forcePasswordChange?: boolean; // Added for first login flow
 }
 
 export interface Admin {
@@ -59,4 +61,3 @@ export interface AppData {
   loans: LoanRequest[];
   auditLogs: AuditLogEntry[];
 }
-

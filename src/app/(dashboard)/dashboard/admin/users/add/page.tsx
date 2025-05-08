@@ -19,8 +19,8 @@ export default function AddUserPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [name, setName] = useState("");
-  const [username, setUsername] = useState(""); // Changed from email
-  const [password, setPassword] = useState(""); 
+  const [username, setUsername] = useState("");
+  // Password is now fixed to "1234" by dataService for admin-created users
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,20 +34,18 @@ export default function AddUserPage() {
 
     setIsLoading(true);
     try {
-      // The User type now expects 'username' instead of 'email'
+      // addDataUser will set default password "1234" and forcePasswordChange=true
       const createdUser = await addDataUser({
-        id: `user_${Date.now()}`,
         name,
-        username, // Changed from email
-        createdAt: new Date().toISOString(),
+        username,
+        profilePhotoUrl: undefined, // No profile photo upload from admin add page for now
       });
       // Log this action
       // await addAuditLog({ adminId: admin.id, adminName: admin.name, action: `Added new user: ${username}`, timestamp: new Date().toISOString() });
 
-
       toast({
         title: "User Added",
-        description: `User ${createdUser.name} has been successfully created.`,
+        description: `User ${createdUser.name} (${createdUser.username}) has been successfully created. Default password is "1234". User will be prompted to change it on first login.`,
       });
       router.push("/dashboard/admin/users");
     } catch (error: any) {
@@ -79,7 +77,7 @@ export default function AddUserPage() {
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle>New User Details</CardTitle>
-          <CardDescription>Fill in the information to create a new user account.</CardDescription>
+          <CardDescription>Fill in the information to create a new user account. The default password will be "1234".</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -95,28 +93,25 @@ export default function AddUserPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label> {/* Changed from Email Address */}
+              <Label htmlFor="username">Username</Label>
               <Input
                 id="username"
-                type="text" // Changed from email
-                placeholder="user_jane_doe" // Changed placeholder
+                type="text" 
+                placeholder="user_jane_doe" 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Temporary Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Set a temporary password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6} 
-              />
-              <p className="text-xs text-muted-foreground">User will be prompted to change this on first login (simulated).</p>
+                <Label>Default Password</Label>
+                <Input
+                    type="text"
+                    value="1234"
+                    disabled
+                    className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground">User will be prompted to change this on first login.</p>
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Adding User..." : "Add User"}
@@ -126,7 +121,7 @@ export default function AddUserPage() {
         </CardContent>
          <CardFooter>
           <p className="text-xs text-muted-foreground">
-            Ensure all information is correct. The user will receive an email (simulated) with login details.
+            Ensure all information is correct. The user will use the username provided and the default password "1234" for their first login.
           </p>
         </CardFooter>
       </Card>

@@ -5,8 +5,8 @@ import type { User, Admin, SavingTransaction, ProfitEntry, LoanRequest, AuditLog
 // Initialize with some mock data
 let data: AppData = {
   users: [
-    { id: 'user1', name: 'Alice Wonderland', username: 'alice', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString() },
-    { id: 'user2', name: 'Bob The Builder', username: 'bob', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString() },
+    { id: 'user1', name: 'Alice Wonderland', username: 'alice', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(), password: 'password123', forcePasswordChange: false },
+    { id: 'user2', name: 'Bob The Builder', username: 'bob', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString(), password: 'password456', forcePasswordChange: false },
   ],
   admins: [
     { id: 'admin1', name: 'Super Admin', email: 'admin' }, 
@@ -35,15 +35,25 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 // User operations
 export const getUsers = async (): Promise<User[]> => { await delay(100); return [...data.users]; };
 export const getUserById = async (id: string): Promise<User | undefined> => { await delay(100); return data.users.find(u => u.id === id); };
-export const addUser = async (user: User): Promise<User> => { 
+
+export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profilePhotoUrl'>): Promise<User> => { 
   await delay(100); 
-  // Simple check for existing username before adding
-  if (data.users.some(u => u.username === user.username)) {
+  if (data.users.some(u => u.username === userStub.username)) {
     throw new Error("User with this username already exists.");
   }
-  data.users.push(user); 
-  return user; 
+  const newUser: User = { 
+    id: `user_${Date.now()}`, 
+    name: userStub.name, 
+    username: userStub.username, 
+    createdAt: new Date().toISOString(),
+    password: "1234", // Default password for admin-created users
+    forcePasswordChange: true, // Force change on first login
+    profilePhotoUrl: userStub.profilePhotoUrl,
+  };
+  data.users.push(newUser); 
+  return newUser; 
 };
+
 export const updateUser = async (id: string, updates: Partial<User>): Promise<User | undefined> => {
   await delay(100);
   const userIndex = data.users.findIndex(u => u.id === id);
@@ -57,6 +67,7 @@ export const updateUser = async (id: string, updates: Partial<User>): Promise<Us
   data.users[userIndex] = { ...data.users[userIndex], ...updates };
   return data.users[userIndex];
 };
+
 export const deleteUser = async (id: string): Promise<boolean> => {
   await delay(100);
   const initialLength = data.users.length;
@@ -67,6 +78,12 @@ export const deleteUser = async (id: string): Promise<boolean> => {
   data.loans = data.loans.filter(l => l.userId !== id);
   return data.users.length < initialLength;
 };
+
+export const checkUsernameAvailability = async (username: string): Promise<boolean> => {
+  await delay(50);
+  return !data.users.some(u => u.username === username);
+};
+
 
 // Admin operations
 export const getAdmins = async (): Promise<Admin[]> => { await delay(100); return [...data.admins]; };

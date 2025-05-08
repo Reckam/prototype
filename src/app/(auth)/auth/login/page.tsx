@@ -31,7 +31,11 @@ export default function UserLoginPage() {
         title: "Login Successful",
         description: `Welcome back to ${APP_NAME}!`,
       });
-      router.push("/dashboard/user");
+      if (user.forcePasswordChange) {
+        router.push("/dashboard/user/force-change-credentials");
+      } else {
+        router.push("/dashboard/user");
+      }
     } else {
       toast({
         variant: "destructive",
@@ -68,6 +72,7 @@ export default function UserLoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              placeholder="Enter your password"
             />
           </div>
           <Button type="submit" className="w-full" disabled={isLoading}>

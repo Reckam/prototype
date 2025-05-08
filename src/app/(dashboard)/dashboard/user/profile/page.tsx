@@ -11,11 +11,12 @@ import { useEffect, useState } from "react";
 import { getCurrentUser, updateUserInSession, changeUserPassword } from "@/lib/authService";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@/types";
-import { updateUser as updateUserDataService } from "@/lib/dataService";
+import { updateUser as updateUserDataService, checkUsernameAvailability } from "@/lib/dataService";
 
 
 export default function UserProfilePage() {
   const [user, setUser] = useState<User | null>(null);
+  const [initialUsername, setInitialUsername] = useState("");
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | undefined>(undefined);
@@ -26,8 +27,12 @@ export default function UserProfilePage() {
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   
   const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingSaveProfile, setIsLoadingSaveProfile] = useState(false);
   const [isPasswordUpdating, setIsPasswordUpdating] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameCheckLoading, setUsernameCheckLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
+
 
   const { toast } = useToast();
 
@@ -37,13 +42,44 @@ export default function UserProfilePage() {
       setUser(currentUser);
       setName(currentUser.name);
       setUsername(currentUser.username);
+      setInitialUsername(currentUser.username);
       setProfilePhotoUrl(currentUser.profilePhotoUrl);
       setNewProfilePhotoPreview(currentUser.profilePhotoUrl || null);
     }
-    setIsLoading(false);
+    setPageLoading(false);
   }, []);
 
-  const handleEditToggle = () => setIsEditing(!isEditing);
+  useEffect(() => {
+    const checkUser = async () => {
+        if (username && username !== initialUsername) {
+            setUsernameCheckLoading(true);
+            const isAvailable = await checkUsernameAvailability(username);
+            setUsernameAvailable(isAvailable);
+            setUsernameCheckLoading(false);
+        } else if (username === initialUsername) {
+             setUsernameAvailable(null); // Reset if back to original or same
+        } else {
+            setUsernameAvailable(null);
+        }
+    };
+    if(isEditing){
+        const debounce = setTimeout(checkUser, 500);
+        return () => clearTimeout(debounce);
+    }
+  }, [username, initialUsername, isEditing]);
+
+
+  const handleEditToggle = () => {
+      if(isEditing){ // If was editing, now cancelling
+        if(user){
+            setName(user.name);
+            setUsername(user.username);
+            setNewProfilePhotoPreview(user.profilePhotoUrl || null);
+            setUsernameAvailable(null); 
+        }
+      }
+      setIsEditing(!isEditing);
+  }
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -60,7 +96,13 @@ export default function UserProfilePage() {
 
   const handleSaveProfile = async () => {
     if (!user) return;
-    setIsLoading(true);
+
+    if (username !== initialUsername && usernameAvailable === false) {
+        toast({ variant: "destructive", title: "Username Taken", description: "Please choose a different username." });
+        return;
+    }
+
+    setIsLoadingSaveProfile(true);
     try {
       const updatedUserData: Partial<User> = { name, username, profilePhotoUrl: newProfilePhotoPreview || undefined };
       
@@ -68,9 +110,11 @@ export default function UserProfilePage() {
       if (updatedUserResponse) {
         updateUserInSession(updatedUserResponse); 
         setUser(updatedUserResponse);
+        setInitialUsername(updatedUserResponse.username); 
         setProfilePhotoUrl(updatedUserResponse.profilePhotoUrl); 
-        toast({ title: "Profile Updated", description: "Your profile details (name, username, photo) have been saved." });
+        toast({ title: "Profile Updated", description: "Your profile details have been saved." });
         setIsEditing(false);
+        setUsernameAvailable(null); 
       } else {
         throw new Error("Failed to update user data.");
       }
@@ -78,7 +122,7 @@ export default function UserProfilePage() {
       console.error("Failed to update profile:", error);
       toast({ variant: "destructive", title: "Profile Update Failed", description: error.message || "Could not save your profile." });
     } finally {
-      setIsLoading(false);
+      setIsLoadingSaveProfile(false);
     }
   };
 
@@ -93,6 +137,10 @@ export default function UserProfilePage() {
     }
     if (newPassword !== confirmNewPassword) {
       toast({ variant: "destructive", title: "Password Update Failed", description: "New passwords do not match." });
+      return;
+    }
+    if (!currentPassword) {
+      toast({ variant: "destructive", title: "Current Password Required", description: "Please enter your current password." });
       return;
     }
 
@@ -110,7 +158,7 @@ export default function UserProfilePage() {
     }
   };
   
-  if (isLoading || !user) {
+  if (pageLoading || !user) {
     return (
       <DashboardLayout role="user">
         <div className="flex items-center justify-center h-full">
@@ -127,9 +175,12 @@ export default function UserProfilePage() {
         <h1 className="text-2xl font-semibold flex items-center">
           <UserCircle className="mr-3 h-6 w-6 text-primary" /> My Profile
         </h1>
-        <Button onClick={isEditing ? handleSaveProfile : handleEditToggle} disabled={isLoading && isEditing}>
+        <Button 
+          onClick={isEditing ? handleSaveProfile : handleEditToggle} 
+          disabled={ (isEditing && isLoadingSaveProfile) || (isEditing && username !== initialUsername && usernameAvailable === false) || (isEditing && usernameCheckLoading) }
+        >
           {isEditing ? (
-            isLoading ? <><Save className="mr-2 h-4 w-4 animate-spin" /> Saving Profile...</> : <><Save className="mr-2 h-4 w-4" /> Save Profile</>
+            isLoadingSaveProfile ? <><Save className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" /> Save Profile</>
           ) : (
             <><Edit className="mr-2 h-4 w-4" /> Edit Profile</>
           )}
@@ -158,7 +209,7 @@ export default function UserProfilePage() {
                   accept="image/*"
                   onChange={handlePhotoChange}
                   className="mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                  disabled={isLoading}
+                  disabled={isLoadingSaveProfile}
                 />
               </div>
             )}
@@ -170,7 +221,7 @@ export default function UserProfilePage() {
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              disabled={!isEditing || isLoading}
+              disabled={!isEditing || isLoadingSaveProfile}
               className="text-base"
             />
           </div>
@@ -181,9 +232,12 @@ export default function UserProfilePage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              disabled={!isEditing || isLoading}
+              disabled={!isEditing || isLoadingSaveProfile}
               className="text-base"
             />
+            {isEditing && usernameCheckLoading && <p className="text-xs text-muted-foreground">Checking availability...</p>}
+            {isEditing && usernameAvailable === true && username !== initialUsername && <p className="text-xs text-green-600">Username available!</p>}
+            {isEditing && usernameAvailable === false && username !== initialUsername && <p className="text-xs text-red-600">Username taken.</p>}
           </div>
            <div className="space-y-2">
             <Label htmlFor="joined">Joined On</Label>
@@ -240,10 +294,6 @@ export default function UserProfilePage() {
                     <> <Save className="mr-2 h-4 w-4" /> Update Password </>
                 )}
               </Button>
-                <p className="text-xs text-muted-foreground">
-                  Password change functionality is for demonstration. In this mock, the actual login password might not change.
-                  The "current password" field is also for demonstration and doesn't perform real validation for regular users.
-                </p>
             </CardContent>
           </Card>
         </CardContent>
