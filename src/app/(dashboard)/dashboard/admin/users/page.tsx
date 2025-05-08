@@ -8,9 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input"; // Added for editing
 import { Label } from "@/components/ui/label"; // Added for editing
-import { getUsers, deleteUser as deleteDataUser, updateUserSavings, getSavingsByUserId, getProfitsByUserId, getLoansByUserId } from "@/lib/dataService";
+import { getUsers, deleteUser as deleteDataUser, updateUserSavings, getSavingsByUserId, getProfitsByUserId, getLoansByUserId, addAuditLog } from "@/lib/dataService";
 import { useToast } from "@/hooks/use-toast";
-import type { User, SavingTransaction, ProfitEntry, LoanRequest } from "@/types";
+import type { User, SavingTransaction, ProfitEntry, LoanRequest, Admin } from "@/types";
 import { Users, PlusCircle, Edit, Trash2, Eye, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -29,13 +29,13 @@ export default function ManageUsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<UserWithDetails | null>(null);
   const [newSavingsAmount, setNewSavingsAmount] = useState<string>("");
-  const [adminId, setAdminId] = useState<string | null>(null);
+  const [admin, setAdmin] = useState<Admin | null>(null);
 
   const { toast } = useToast();
 
   useEffect(() => {
-    const admin = getCurrentAdmin();
-    if (admin) setAdminId(admin.id);
+    const currentAdmin = getCurrentAdmin();
+    setAdmin(currentAdmin);
     fetchUsers();
   }, []);
 
@@ -65,16 +65,23 @@ export default function ManageUsersPage() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!adminId) {
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!admin) {
         toast({ variant: "destructive", title: "Error", description: "Admin not authenticated." });
         return;
     }
     const confirmed = window.confirm("Are you sure you want to delete this user and all their data? This action cannot be undone.");
     if (confirmed) {
       try {
-        await deleteDataUser(userId); // Ensure deleteDataUser logs the audit
-        toast({ title: "User Deleted", description: "The user has been successfully deleted." });
+        await deleteDataUser(userId);
+        await addAuditLog({
+            adminId: admin.id,
+            adminName: admin.name,
+            action: `Deleted user: ${userName} (ID: ${userId})`,
+            timestamp: new Date().toISOString(),
+            details: { userId, userName }
+        });
+        toast({ title: "User Deleted", description: `User ${userName} has been successfully deleted.` });
         fetchUsers(); // Refresh user list
       } catch (error) {
         console.error("Failed to delete user:", error);
@@ -89,7 +96,7 @@ export default function ManageUsersPage() {
   };
 
   const handleSaveSavingsUpdate = async () => {
-    if (!selectedUserForEdit || !adminId) {
+    if (!selectedUserForEdit || !admin) {
       toast({ variant: "destructive", title: "Error", description: "No user selected or admin not authenticated." });
       return;
     }
@@ -99,11 +106,9 @@ export default function ManageUsersPage() {
       return;
     }
     
-    // For this mock, we add a new transaction to represent the update.
-    // In a real app, this would be a specific "adjustment" transaction type.
-    // Or you'd edit specific existing transactions, which is more complex.
     try {
-      await updateUserSavings(selectedUserForEdit.id, amount, new Date().toISOString()); //This function will also add an audit log entry
+      // Pass admin details for audit logging within updateUserSavings
+      await updateUserSavings(selectedUserForEdit.id, amount, new Date().toISOString(), admin.id, admin.name); 
       toast({ title: "Savings Updated", description: `Savings for ${selectedUserForEdit.name} updated.` });
       setSelectedUserForEdit(null);
       setNewSavingsAmount("");
@@ -215,7 +220,7 @@ export default function ManageUsersPage() {
                           </DialogContent>
                         )}
                       </Dialog>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.id)} className="text-destructive hover:text-destructive">
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.id, user.name)} className="text-destructive hover:text-destructive">
                         <Trash2 className="h-4 w-4" />
                         <span className="sr-only">Delete User</span>
                       </Button>

@@ -90,29 +90,37 @@ export const addSavingTransaction = async (transaction: Omit<SavingTransaction, 
   }
   return newTransaction;
 };
-export const updateUserSavings = async (userId: string, amount: number, date: string): Promise<SavingTransaction | undefined> => {
+export const updateUserSavings = async (userId: string, amount: number, date: string, adminId: string, adminName: string): Promise<SavingTransaction | undefined> => {
   // This is a simplified example; real scenarios would be more complex (e.g., editing specific transactions)
-  // For this mock, let's just add a new savings transaction as an "update"
+  // For this mock, let's just add a new savings transaction as an "update" to the total savings.
+  // A more robust system might involve creating an "adjustment" transaction or directly modifying a balance.
   await delay(100);
+
+  // Find the user's current total savings to calculate the difference for the adjustment transaction
+  const userSavings = data.savings.filter(s => s.userId === userId);
+  const currentTotalSavings = userSavings.reduce((acc, s) => acc + (s.type === 'deposit' ? s.amount : -s.amount), 0);
+  
+  const adjustmentAmount = amount - currentTotalSavings;
+  const transactionType = adjustmentAmount >= 0 ? 'deposit' : 'withdrawal';
+  const absAdjustmentAmount = Math.abs(adjustmentAmount);
+
   const newTransaction: SavingTransaction = {
-    id: `s_update_${Date.now()}`,
+    id: `s_adj_${Date.now()}`,
     userId,
-    amount,
+    amount: absAdjustmentAmount,
     date,
-    type: 'deposit', // Assuming updates are deposits for simplicity
+    type: transactionType, 
   };
   data.savings.push(newTransaction);
-  // In a real app, you might also log this action in audit logs
-  const admin = data.admins[0]; // Assuming first admin did this
-  if (admin) {
-    addAuditLog({
-        adminId: admin.id,
-        adminName: admin.name,
-        action: `Adjusted savings for user ID ${userId} to ${amount}`, // Changed action wording
-        timestamp: new Date().toISOString(),
-        details: { transactionId: newTransaction.id, userId: userId, newTotalSavings: amount, date: date }
-    });
-  }
+  
+  addAuditLog({
+      adminId: adminId,
+      adminName: adminName,
+      action: `Adjusted savings for user ID ${userId}. New total: ${amount}. Adjustment: ${transactionType} of ${absAdjustmentAmount}`,
+      timestamp: new Date().toISOString(),
+      details: { transactionId: newTransaction.id, userId: userId, newTotalSavings: amount, adjustmentAmount: absAdjustmentAmount, adjustmentType: transactionType, date: date }
+  });
+  
   return newTransaction;
 };
 
@@ -153,12 +161,12 @@ export const updateLoanStatus = async (loanId: string, status: LoanStatus, admin
   data.loans[loanIndex].reviewedAt = new Date().toISOString();
   
   // Add to audit log
-  const admin = data.admins.find(a => a.id === adminId);
+  const admin = data.admins.find(a => a.id === adminId); // Fetch admin by ID for name
   const loan = data.loans[loanIndex];
   if (admin && loan) {
       addAuditLog({
           adminId: admin.id,
-          adminName: admin.name,
+          adminName: admin.name, // Use fetched admin name
           action: `${status === 'approved' ? 'Approved' : 'Rejected'} loan #${loan.id} for ${loan.userName || `user ID ${loan.userId}`}`,
           timestamp: new Date().toISOString(),
           details: { loanId: loan.id, newStatus: status, userId: loan.userId }
