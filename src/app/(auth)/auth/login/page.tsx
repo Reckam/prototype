@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -15,14 +16,15 @@ import React, { useState } from "react";
 export default function UserLoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const { user, error } = await loginUser(email, password);
+    // The 'username' here will be treated as the user's email by the authService for lookup
+    const { user, error } = await loginUser(username, password);
     setIsLoading(false);
 
     if (user) {
@@ -35,7 +37,7 @@ export default function UserLoginPage() {
       toast({
         variant: "destructive",
         title: "Login Failed",
-        description: error || "Invalid email or password.",
+        description: error || "Invalid username or password.",
       });
     }
   };
@@ -49,13 +51,13 @@ export default function UserLoginPage() {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="username">Username</Label>
             <Input
-              id="email"
-              type="email"
-              placeholder="m@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="username"
+              type="text"
+              placeholder="Enter your username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
             />
           </div>
@@ -95,3 +97,4 @@ export default function UserLoginPage() {
     </Card>
   );
 }
+

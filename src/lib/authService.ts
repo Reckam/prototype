@@ -24,10 +24,11 @@ export const registerUser = async (name: string, email: string, passwordPlain: s
   return { user: newUser };
 };
 
-export const loginUser = async (email: string, passwordPlain: string): Promise<{ user?: User, error?: string }> => {
+export const loginUser = async (username: string, passwordPlain: string): Promise<{ user?: User, error?: string }> => {
   // In a real app, verify hashed password
+  // For this mock, 'username' input from login form is checked against the user's 'email' field.
   const users = await getUsers();
-  const user = users.find(u => u.email === email); // Password check is omitted for mock
+  const user = users.find(u => u.email === username); // Password check is omitted for mock
   if (user) {
     if (typeof window !== 'undefined') {
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
@@ -52,9 +53,10 @@ export const getCurrentUser = (): User | null => {
 };
 
 // Admin Authentication
-export const loginAdmin = async (email: string, passwordPlain: string): Promise<{ admin?: Admin, error?: string }> => {
+export const loginAdmin = async (username: string, passwordPlain: string): Promise<{ admin?: Admin, error?: string }> => {
   const admins = await getAdmins();
-  const admin = admins.find(a => a.email === email); 
+  // Admin login uses 'username' which maps to their 'email' field for lookup.
+  const admin = admins.find(a => a.email === username); 
   
   if (admin) {
     // Specific check for the admin with email 'admin' and password '0000'
@@ -89,3 +91,4 @@ export const getCurrentAdmin = (): Admin | null => {
   }
   return null;
 };
+
