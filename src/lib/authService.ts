@@ -53,9 +53,16 @@ export const getCurrentUser = (): User | null => {
 
 export const updateUserInSession = (updatedUser: User): void => {
   if (typeof window !== 'undefined') {
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+    // Ensure current user in session is fully updated
+    const currentUser = getCurrentUser();
+    if (currentUser && currentUser.id === updatedUser.id) {
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+    } else { // If for some reason current user is not the one being updated (e.g. admin action reflected in user session)
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+    }
   }
 };
+
 
 export const requestPasswordReset = async (username: string): Promise<{ success: boolean, message: string }> => {
   await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
@@ -74,6 +81,31 @@ export const requestPasswordReset = async (username: string): Promise<{ success:
     // Even if user doesn't exist, present a similar message to avoid username enumeration
     console.log(`Password reset attempted for non-existent username: ${username}`);
     return { success: true, message }; // Reporting success: true to UI but action might differ
+  }
+};
+
+export const changeUserPassword = async (userId: string, currentPasswordPlain: string, newPasswordPlain: string): Promise<{ success: boolean, message: string }> => {
+  await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+  const user = await getUserById(userId);
+
+  if (!user) {
+    return { success: false, message: "User not found." };
+  }
+
+  // Mock password change: In a real app, currentPasswordPlain would be verified against a stored hash.
+  // For this mock, we'll assume any non-empty current password "works" for demonstration, or skip check.
+  // Let's simulate a successful password change if currentPassword is provided (even if not truly checked)
+  if (currentPasswordPlain) { 
+    console.log(`Simulating password change for user ${user.username}. New password (plain): ${newPasswordPlain}`);
+    // In a real app, you would update the stored password hash here.
+    // For the mock, no actual data change related to password hash occurs.
+    return { success: true, message: "Password updated successfully. (Mock)" };
+  } else {
+     // If we wanted a mock failure for empty current password for demo purposes
+    // return { success: false, message: "Current password is required to change your password. (Mock)" };
+    // For simplicity for users, let's just let it pass.
+    console.log(`Simulating password change for user ${user.username} without current password check. New password (plain): ${newPasswordPlain}`);
+    return { success: true, message: "Password updated successfully. (Mock - current password check skipped)" };
   }
 };
 

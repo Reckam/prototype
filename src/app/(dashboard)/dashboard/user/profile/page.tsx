@@ -6,23 +6,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { UserCircle, Edit, Save } from "lucide-react";
-// import Image from "next/image"; // Image component not used directly if AvatarImage handles it
+import { UserCircle, Edit, Save, KeyRound } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getCurrentUser, updateUserInSession } from "@/lib/authService";
+import { getCurrentUser, updateUserInSession, changeUserPassword } from "@/lib/authService";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@/types";
-import { updateUser as updateUserData } from "@/lib/dataService";
+import { updateUser as updateUserDataService } from "@/lib/dataService";
 
 
 export default function UserProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [name, setName] = useState("");
-  const [username, setUsername] = useState(""); // Changed from email
+  const [username, setUsername] = useState("");
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | undefined>(undefined);
   const [newProfilePhotoPreview, setNewProfilePhotoPreview] = useState<string | null>(null);
+  
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPasswordUpdating, setIsPasswordUpdating] = useState(false);
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -30,7 +36,7 @@ export default function UserProfilePage() {
     if (currentUser) {
       setUser(currentUser);
       setName(currentUser.name);
-      setUsername(currentUser.username); // Changed from email
+      setUsername(currentUser.username);
       setProfilePhotoUrl(currentUser.profilePhotoUrl);
       setNewProfilePhotoPreview(currentUser.profilePhotoUrl || null);
     }
@@ -56,23 +62,51 @@ export default function UserProfilePage() {
     if (!user) return;
     setIsLoading(true);
     try {
-      const updatedUserData: Partial<User> = { name, username, profilePhotoUrl: newProfilePhotoPreview || undefined }; // username instead of email
+      const updatedUserData: Partial<User> = { name, username, profilePhotoUrl: newProfilePhotoPreview || undefined };
       
-      const updatedUserResponse = await updateUserData(user.id, updatedUserData);
+      const updatedUserResponse = await updateUserDataService(user.id, updatedUserData);
       if (updatedUserResponse) {
-        updateUserInSession(updatedUserResponse); // Update localStorage directly
+        updateUserInSession(updatedUserResponse); 
         setUser(updatedUserResponse);
         setProfilePhotoUrl(updatedUserResponse.profilePhotoUrl); 
-        toast({ title: "Profile Updated", description: "Your profile details have been saved." });
+        toast({ title: "Profile Updated", description: "Your profile details (name, username, photo) have been saved." });
         setIsEditing(false);
       } else {
         throw new Error("Failed to update user data.");
       }
     } catch (error: any) {
       console.error("Failed to update profile:", error);
-      toast({ variant: "destructive", title: "Update Failed", description: error.message || "Could not save your profile." });
+      toast({ variant: "destructive", title: "Profile Update Failed", description: error.message || "Could not save your profile." });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!user) {
+      toast({ variant: "destructive", title: "Error", description: "User not found." });
+      return;
+    }
+    if (!newPassword || newPassword.length < 4) {
+      toast({ variant: "destructive", title: "Password Update Failed", description: "New password must be at least 4 characters long." });
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      toast({ variant: "destructive", title: "Password Update Failed", description: "New passwords do not match." });
+      return;
+    }
+
+    setIsPasswordUpdating(true);
+    const result = await changeUserPassword(user.id, currentPassword, newPassword);
+    setIsPasswordUpdating(false);
+
+    if (result.success) {
+      toast({ title: "Password Updated", description: result.message });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } else {
+      toast({ variant: "destructive", title: "Password Update Failed", description: result.message });
     }
   };
   
@@ -95,7 +129,7 @@ export default function UserProfilePage() {
         </h1>
         <Button onClick={isEditing ? handleSaveProfile : handleEditToggle} disabled={isLoading && isEditing}>
           {isEditing ? (
-            isLoading ? <><Save className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" /> Save Changes</>
+            isLoading ? <><Save className="mr-2 h-4 w-4 animate-spin" /> Saving Profile...</> : <><Save className="mr-2 h-4 w-4" /> Save Profile</>
           ) : (
             <><Edit className="mr-2 h-4 w-4" /> Edit Profile</>
           )}
@@ -105,7 +139,7 @@ export default function UserProfilePage() {
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle>Personal Information</CardTitle>
-          <CardDescription>View and update your personal details.</CardDescription>
+          <CardDescription>View and update your personal details. Password changes are handled separately below.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex flex-col items-center space-y-4">
@@ -141,10 +175,10 @@ export default function UserProfilePage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label> {/* Changed from Email Address */}
+            <Label htmlFor="username">Username</Label>
             <Input
               id="username"
-              type="text" // Changed from email
+              type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={!isEditing || isLoading}
@@ -160,29 +194,58 @@ export default function UserProfilePage() {
               className="text-base bg-muted"
             />
           </div>
-          {isEditing && (
-            <Card className="mt-6 bg-secondary/10 border-border shadow-inner">
-              <CardHeader>
-                <CardTitle className="text-lg">Change Password</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="current-password">Current Password</Label>
-                  <Input id="current-password" type="password" disabled={isLoading} placeholder="Enter current password"/>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="new-password">New Password</Label>
-                  <Input id="new-password" type="password" disabled={isLoading} placeholder="Enter new password"/>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-new-password">Confirm New Password</Label>
-                  <Input id="confirm-new-password" type="password" disabled={isLoading} placeholder="Confirm new password"/>
-                </div>
-                <Button variant="outline" disabled={isLoading}>Update Password</Button>
-                 <p className="text-xs text-muted-foreground">Password change functionality is illustrative for this mock.</p>
-              </CardContent>
-            </Card>
-          )}
+          
+          <Card className="mt-6 bg-secondary/10 border-border shadow-inner">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center"><KeyRound className="mr-2 h-5 w-5 text-primary"/> Change Password</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="current-password">Current Password</Label>
+                <Input 
+                  id="current-password" 
+                  type="password" 
+                  disabled={isPasswordUpdating} 
+                  placeholder="Enter current password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-password">New Password</Label>
+                <Input 
+                  id="new-password" 
+                  type="password" 
+                  disabled={isPasswordUpdating} 
+                  placeholder="Enter new password (min. 4 characters)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirm-new-password">Confirm New Password</Label>
+                <Input 
+                  id="confirm-new-password" 
+                  type="password" 
+                  disabled={isPasswordUpdating} 
+                  placeholder="Confirm new password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                />
+              </div>
+              <Button variant="outline" disabled={isPasswordUpdating} onClick={handleUpdatePassword}>
+                {isPasswordUpdating ? (
+                    <> <Save className="mr-2 h-4 w-4 animate-spin" /> Updating Password...</>
+                ) : (
+                    <> <Save className="mr-2 h-4 w-4" /> Update Password </>
+                )}
+              </Button>
+                <p className="text-xs text-muted-foreground">
+                  Password change functionality is for demonstration. In this mock, the actual login password might not change.
+                  The "current password" field is also for demonstration and doesn't perform real validation for regular users.
+                </p>
+            </CardContent>
+          </Card>
         </CardContent>
       </Card>
     </DashboardLayout>
