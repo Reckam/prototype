@@ -13,7 +13,7 @@ export default function LandingPage() {
         <div className="container flex h-14 items-center">
           <Link href="/" className="flex items-center space-x-2">
             <PiggyBank className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg leading-tight">{APP_NAME}</span>
+            <span className="font-bold text-lg leading-none">{APP_NAME}</span>
           </Link>
           <nav className="ml-auto flex items-center space-x-2">
             <Button variant="ghost" asChild>
