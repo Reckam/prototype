@@ -53,7 +53,7 @@ export default function AdminLoginPage() {
             <Input
               id="email"
               type="text"
-              placeholder="admin"
+              placeholder="Enter username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -64,7 +64,7 @@ export default function AdminLoginPage() {
             <Input
               id="password"
               type="password"
-              placeholder="0000"
+              placeholder="Enter password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
