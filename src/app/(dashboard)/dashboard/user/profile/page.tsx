@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { UserCircle, Edit, Save, Camera } from "lucide-react";
-import Image from "next/image";
+import { UserCircle, Edit, Save } from "lucide-react";
+// import Image from "next/image"; // Image component not used directly if AvatarImage handles it
 import { useEffect, useState } from "react";
-import { getCurrentUser, loginUser } from "@/lib/authService";
+import { getCurrentUser, updateUserInSession } from "@/lib/authService";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@/types";
 import { updateUser as updateUserData } from "@/lib/dataService";
@@ -18,7 +18,7 @@ import { updateUser as updateUserData } from "@/lib/dataService";
 export default function UserProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState(""); // Changed from email
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | undefined>(undefined);
   const [newProfilePhotoPreview, setNewProfilePhotoPreview] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -30,7 +30,7 @@ export default function UserProfilePage() {
     if (currentUser) {
       setUser(currentUser);
       setName(currentUser.name);
-      setEmail(currentUser.email);
+      setUsername(currentUser.username); // Changed from email
       setProfilePhotoUrl(currentUser.profilePhotoUrl);
       setNewProfilePhotoPreview(currentUser.profilePhotoUrl || null);
     }
@@ -48,7 +48,7 @@ export default function UserProfilePage() {
       };
       reader.readAsDataURL(file);
     } else {
-      setNewProfilePhotoPreview(profilePhotoUrl || null); // Revert to original if selection cancelled
+      setNewProfilePhotoPreview(profilePhotoUrl || null); 
     }
   };
 
@@ -56,25 +56,21 @@ export default function UserProfilePage() {
     if (!user) return;
     setIsLoading(true);
     try {
-      // In a real app, if newProfilePhotoPreview is a data URI from a new file,
-      // it would be uploaded to a storage service first, and its URL would be used.
-      // For this mock, we'll directly use newProfilePhotoPreview as the URL.
-      const updatedUserData: Partial<User> = { name, email, profilePhotoUrl: newProfilePhotoPreview || undefined };
+      const updatedUserData: Partial<User> = { name, username, profilePhotoUrl: newProfilePhotoPreview || undefined }; // username instead of email
       
-      const updatedUser = await updateUserData(user.id, updatedUserData);
-      if (updatedUser) {
-        // Re-login to update localStorage, in a real app this would be a session update
-        await loginUser(updatedUser.email, "mockPassword"); // Mock password, real app would handle session
-        setUser(updatedUser);
-        setProfilePhotoUrl(updatedUser.profilePhotoUrl); // Update displayed photo
+      const updatedUserResponse = await updateUserData(user.id, updatedUserData);
+      if (updatedUserResponse) {
+        updateUserInSession(updatedUserResponse); // Update localStorage directly
+        setUser(updatedUserResponse);
+        setProfilePhotoUrl(updatedUserResponse.profilePhotoUrl); 
         toast({ title: "Profile Updated", description: "Your profile details have been saved." });
         setIsEditing(false);
       } else {
         throw new Error("Failed to update user data.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to update profile:", error);
-      toast({ variant: "destructive", title: "Update Failed", description: "Could not save your profile." });
+      toast({ variant: "destructive", title: "Update Failed", description: error.message || "Could not save your profile." });
     } finally {
       setIsLoading(false);
     }
@@ -145,12 +141,12 @@ export default function UserProfilePage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Email Address</Label>
+            <Label htmlFor="username">Username</Label> {/* Changed from Email Address */}
             <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="username"
+              type="text" // Changed from email
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               disabled={!isEditing || isLoading}
               className="text-base"
             />
@@ -192,4 +188,3 @@ export default function UserProfilePage() {
     </DashboardLayout>
   );
 }
-

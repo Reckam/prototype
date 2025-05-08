@@ -1,6 +1,6 @@
 export interface User {
   id: string;
-  email: string;
+  username: string; // Changed from email to username
   name: string;
   createdAt: string;
   profilePhotoUrl?: string; // Added for profile photo
@@ -8,7 +8,7 @@ export interface User {
 
 export interface Admin {
   id: string;
-  email:string;
+  email:string; // Admin still uses email
   name: string;
 }
 

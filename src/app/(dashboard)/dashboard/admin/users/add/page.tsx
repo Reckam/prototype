@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { addUser as addDataUser } from "@/lib/dataService"; // Using alias to avoid conflict with authService version
+import { addUser as addDataUser } from "@/lib/dataService"; 
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -19,8 +19,8 @@ export default function AddUserPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState(""); // In real app, admin might not set this or it's temporary
+  const [username, setUsername] = useState(""); // Changed from email
+  const [password, setPassword] = useState(""); 
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,17 +34,15 @@ export default function AddUserPage() {
 
     setIsLoading(true);
     try {
-      const newUser: Omit<User, 'id' | 'createdAt'> & { passwordPlain: string } = { name, email, passwordPlain: password };
-      // In a real app, the backend would handle password hashing and full user creation.
-      // For mock, we add directly. The password is not actually stored or used beyond this example.
+      // The User type now expects 'username' instead of 'email'
       const createdUser = await addDataUser({
         id: `user_${Date.now()}`,
         name,
-        email,
+        username, // Changed from email
         createdAt: new Date().toISOString(),
       });
       // Log this action
-      // await addAuditLog({ adminId: admin.id, adminName: admin.name, action: `Added new user: ${email}`, timestamp: new Date().toISOString() });
+      // await addAuditLog({ adminId: admin.id, adminName: admin.name, action: `Added new user: ${username}`, timestamp: new Date().toISOString() });
 
 
       toast({
@@ -57,7 +55,7 @@ export default function AddUserPage() {
       toast({
         variant: "destructive",
         title: "Failed to Add User",
-        description: error.message || "Could not create the user. Email might be taken.",
+        description: error.message || "Could not create the user. Username might be taken.",
       });
     } finally {
       setIsLoading(false);
@@ -97,13 +95,13 @@ export default function AddUserPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
+              <Label htmlFor="username">Username</Label> {/* Changed from Email Address */}
               <Input
-                id="email"
-                type="email"
-                placeholder="user@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text" // Changed from email
+                placeholder="user_jane_doe" // Changed placeholder
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
               />
             </div>
@@ -116,7 +114,7 @@ export default function AddUserPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6} // Basic validation
+                minLength={6} 
               />
               <p className="text-xs text-muted-foreground">User will be prompted to change this on first login (simulated).</p>
             </div>

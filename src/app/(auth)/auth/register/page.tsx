@@ -17,7 +17,7 @@ export default function UserRegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState(""); // Changed from email
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export default function UserRegisterPage() {
       return;
     }
     setIsLoading(true);
-    const { user, error } = await registerUser(name, email, password, profilePhotoPreview || undefined);
+    const { user, error } = await registerUser(name, username, password, profilePhotoPreview || undefined); // Changed email to username
     setIsLoading(false);
 
     if (user) {
@@ -85,13 +85,13 @@ export default function UserRegisterPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="username">Username</Label> {/* Changed from Email */}
             <Input
-              id="email"
-              type="email"
-              placeholder="m@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="username"
+              type="text" // Changed from email
+              placeholder="your_username" // Changed placeholder
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
             />
           </div>
@@ -159,4 +159,3 @@ export default function UserRegisterPage() {
     </Card>
   );
 }
-

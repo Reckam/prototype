@@ -23,7 +23,6 @@ export default function UserLoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // The 'username' here will be treated as the user's email by the authService for lookup
     const { user, error } = await loginUser(username, password);
     setIsLoading(false);
 
@@ -78,6 +77,11 @@ export default function UserLoginPage() {
         </form>
       </CardContent>
       <CardFooter className="flex flex-col space-y-2 text-sm">
+        <div className="text-center">
+          <Link href="/auth/forgot-password" className="font-medium text-primary hover:underline">
+            Forgot Password?
+          </Link>
+        </div>
         <p>
           Don&apos;t have an account?{" "}
           <Link href="/auth/register" className="font-medium text-primary hover:underline">
@@ -97,4 +101,3 @@ export default function UserLoginPage() {
     </Card>
   );
 }
-

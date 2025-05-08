@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input"; // Added for editing
-import { Label } from "@/components/ui/label"; // Added for editing
+import { Input } from "@/components/ui/input"; 
+import { Label } from "@/components/ui/label"; 
 import { getUsers, deleteUser as deleteDataUser, updateUserSavings, getSavingsByUserId, getProfitsByUserId, getLoansByUserId, addAuditLog } from "@/lib/dataService";
 import { useToast } from "@/hooks/use-toast";
 import type { User, SavingTransaction, ProfitEntry, LoanRequest, Admin } from "@/types";
@@ -92,7 +92,7 @@ export default function ManageUsersPage() {
   
   const handleEditSavings = (user: UserWithDetails) => {
     setSelectedUserForEdit(user);
-    setNewSavingsAmount(user.totalSavings.toString()); // Pre-fill with current savings or an empty string
+    setNewSavingsAmount(user.totalSavings.toString()); 
   };
 
   const handleSaveSavingsUpdate = async () => {
@@ -107,12 +107,11 @@ export default function ManageUsersPage() {
     }
     
     try {
-      // Pass admin details for audit logging within updateUserSavings
       await updateUserSavings(selectedUserForEdit.id, amount, new Date().toISOString(), admin.id, admin.name); 
       toast({ title: "Savings Updated", description: `Savings for ${selectedUserForEdit.name} updated.` });
       setSelectedUserForEdit(null);
       setNewSavingsAmount("");
-      fetchUsers(); // Refresh the list
+      fetchUsers(); 
     } catch (error) {
       console.error("Failed to update savings:", error);
       toast({ variant: "destructive", title: "Update Failed", description: "Could not update savings." });
@@ -164,7 +163,7 @@ export default function ManageUsersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
+                  <TableHead>Username</TableHead> {/* Changed from Email */}
                   <TableHead>Joined</TableHead>
                   <TableHead className="text-right">Total Savings</TableHead>
                   <TableHead className="text-right">Total Profits</TableHead>
@@ -176,7 +175,7 @@ export default function ManageUsersPage() {
                 {users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.username}</TableCell> {/* Changed from user.email */}
                     <TableCell>{format(new Date(user.createdAt), "PP")}</TableCell>
                     <TableCell className="text-right">{formatCurrency(user.totalSavings)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(user.totalProfits)}</TableCell>
@@ -224,12 +223,6 @@ export default function ManageUsersPage() {
                         <Trash2 className="h-4 w-4" />
                         <span className="sr-only">Delete User</span>
                       </Button>
-                      {/* <Button variant="ghost" size="icon" asChild>
-                        <Link href={`/dashboard/admin/users/${user.id}/details`}>
-                          <Eye className="h-4 w-4" />
-                          <span className="sr-only">View Details</span>
-                        </Link>
-                      </Button> */}
                     </TableCell>
                   </TableRow>
                 ))}

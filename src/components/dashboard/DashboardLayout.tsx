@@ -104,9 +104,9 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
 
   const navItems = role === "user" ? userNavItems : adminNavItems;
   const profileName = role === "user" ? currentUser?.name : currentAdmin?.name;
-  const profileEmail = role === "user" ? currentUser?.email : currentAdmin?.email;
+  const profileIdentifier = role === "user" ? currentUser?.username : currentAdmin?.email; // Use username for user, email for admin
   const profileRoleIcon = role === "user" ? UserCircle : ShieldCheck;
-  const profilePhoto = role === "user" ? currentUser?.profilePhotoUrl : undefined; // Admin uses fallback or default
+  const profilePhoto = role === "user" ? currentUser?.profilePhotoUrl : undefined; 
 
 
   if (!isClient || (role === "user" && !currentUser) || (role === "admin" && !currentAdmin)) {
@@ -214,7 +214,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                 <profileRoleIcon className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <div>{profileName}</div>
-                  <div className="text-xs text-muted-foreground">{profileEmail}</div>
+                  <div className="text-xs text-muted-foreground">{profileIdentifier}</div>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

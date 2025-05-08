@@ -5,11 +5,11 @@ import type { User, Admin, SavingTransaction, ProfitEntry, LoanRequest, AuditLog
 // Initialize with some mock data
 let data: AppData = {
   users: [
-    { id: 'user1', name: 'Alice Wonderland', email: 'alice@example.com', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString() },
-    { id: 'user2', name: 'Bob The Builder', email: 'bob@example.com', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString() },
+    { id: 'user1', name: 'Alice Wonderland', username: 'alice', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString() },
+    { id: 'user2', name: 'Bob The Builder', username: 'bob', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString() },
   ],
   admins: [
-    { id: 'admin1', name: 'Super Admin', email: 'admin' }, // Changed email to 'admin'
+    { id: 'admin1', name: 'Super Admin', email: 'admin' }, 
   ],
   savings: [
     { id: 's1', userId: 'user1', amount: 3500000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 25).toISOString(), type: 'deposit' }, // UGX amounts
@@ -37,9 +37,9 @@ export const getUsers = async (): Promise<User[]> => { await delay(100); return 
 export const getUserById = async (id: string): Promise<User | undefined> => { await delay(100); return data.users.find(u => u.id === id); };
 export const addUser = async (user: User): Promise<User> => { 
   await delay(100); 
-  // Simple check for existing email before adding
-  if (data.users.some(u => u.email === user.email)) {
-    throw new Error("User with this email already exists.");
+  // Simple check for existing username before adding
+  if (data.users.some(u => u.username === user.username)) {
+    throw new Error("User with this username already exists.");
   }
   data.users.push(user); 
   return user; 
@@ -48,6 +48,12 @@ export const updateUser = async (id: string, updates: Partial<User>): Promise<Us
   await delay(100);
   const userIndex = data.users.findIndex(u => u.id === id);
   if (userIndex === -1) return undefined;
+
+  // If username is being updated, check for uniqueness
+  if (updates.username && data.users.some(u => u.username === updates.username && u.id !== id)) {
+    throw new Error("Username already taken.");
+  }
+
   data.users[userIndex] = { ...data.users[userIndex], ...updates };
   return data.users[userIndex];
 };
@@ -91,18 +97,29 @@ export const addSavingTransaction = async (transaction: Omit<SavingTransaction, 
   return newTransaction;
 };
 export const updateUserSavings = async (userId: string, amount: number, date: string, adminId: string, adminName: string): Promise<SavingTransaction | undefined> => {
-  // This is a simplified example; real scenarios would be more complex (e.g., editing specific transactions)
-  // For this mock, let's just add a new savings transaction as an "update" to the total savings.
-  // A more robust system might involve creating an "adjustment" transaction or directly modifying a balance.
   await delay(100);
 
-  // Find the user's current total savings to calculate the difference for the adjustment transaction
   const userSavings = data.savings.filter(s => s.userId === userId);
   const currentTotalSavings = userSavings.reduce((acc, s) => acc + (s.type === 'deposit' ? s.amount : -s.amount), 0);
   
   const adjustmentAmount = amount - currentTotalSavings;
   const transactionType = adjustmentAmount >= 0 ? 'deposit' : 'withdrawal';
   const absAdjustmentAmount = Math.abs(adjustmentAmount);
+
+  if (absAdjustmentAmount === 0) { // No actual change
+    const user = await getUserById(userId);
+     addAuditLog({
+      adminId: adminId,
+      adminName: adminName,
+      action: `Attempted savings adjustment for user ID ${userId} (${user?.name}), but no change in amount.`,
+      timestamp: new Date().toISOString(),
+      details: { userId: userId, newTotalSavings: amount, currentTotalSavings: currentTotalSavings, date: date }
+    });
+    // Find the last transaction to return or return undefined if no change made.
+    // For this mock, we can just say no new transaction was made.
+    return undefined;
+  }
+
 
   const newTransaction: SavingTransaction = {
     id: `s_adj_${Date.now()}`,
@@ -113,12 +130,13 @@ export const updateUserSavings = async (userId: string, amount: number, date: st
   };
   data.savings.push(newTransaction);
   
+  const user = await getUserById(userId);
   addAuditLog({
       adminId: adminId,
       adminName: adminName,
-      action: `Adjusted savings for user ID ${userId}. New total: ${amount}. Adjustment: ${transactionType} of ${absAdjustmentAmount}`,
+      action: `Adjusted savings for user ${user?.name} (ID: ${userId}). New total: ${amount}. Adjustment: ${transactionType} of ${absAdjustmentAmount}`,
       timestamp: new Date().toISOString(),
-      details: { transactionId: newTransaction.id, userId: userId, newTotalSavings: amount, adjustmentAmount: absAdjustmentAmount, adjustmentType: transactionType, date: date }
+      details: { transactionId: newTransaction.id, userId: userId, userName: user?.name, newTotalSavings: amount, adjustmentAmount: absAdjustmentAmount, adjustmentType: transactionType, date: date }
   });
   
   return newTransaction;
@@ -160,13 +178,12 @@ export const updateLoanStatus = async (loanId: string, status: LoanStatus, admin
   data.loans[loanIndex].status = status;
   data.loans[loanIndex].reviewedAt = new Date().toISOString();
   
-  // Add to audit log
-  const admin = data.admins.find(a => a.id === adminId); // Fetch admin by ID for name
+  const admin = data.admins.find(a => a.id === adminId); 
   const loan = data.loans[loanIndex];
   if (admin && loan) {
       addAuditLog({
           adminId: admin.id,
-          adminName: admin.name, // Use fetched admin name
+          adminName: admin.name, 
           action: `${status === 'approved' ? 'Approved' : 'Rejected'} loan #${loan.id} for ${loan.userName || `user ID ${loan.userId}`}`,
           timestamp: new Date().toISOString(),
           details: { loanId: loan.id, newStatus: status, userId: loan.userId }
