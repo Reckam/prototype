@@ -4,13 +4,13 @@
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Landmark, BarChart3, FileClock, PlusCircle, ArrowRight, PiggyBank, TrendingUp } from "lucide-react";
+import { Users, Landmark, FileClock, PlusCircle, ArrowRight, PiggyBank, TrendingUp, CalendarClock, CalendarRange } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getCurrentAdmin } from "@/lib/authService";
-import type { Admin, User, LoanRequest, AuditLogEntry, SavingTransaction, ProfitEntry } from "@/types";
+import type { Admin, AuditLogEntry, SavingTransaction } from "@/types";
 import { getAllLoans, getAuditLogs, getUsers, getSavingsByUserId, getProfitsByUserId } from "@/lib/dataService"; 
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 
 export default function AdminDashboardPage() {
   const [admin, setAdmin] = useState<Admin | null>(null);
@@ -18,6 +18,8 @@ export default function AdminDashboardPage() {
   const [pendingLoansCount, setPendingLoansCount] = useState<number>(0);
   const [recentLogs, setRecentLogs] = useState<AuditLogEntry[]>([]);
   const [totalSystemSavings, setTotalSystemSavings] = useState<number>(0);
+  const [totalWeeklySavings, setTotalWeeklySavings] = useState<number>(0);
+  const [totalMonthlySavings, setTotalMonthlySavings] = useState<number>(0);
   const [totalSystemProfits, setTotalSystemProfits] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -45,22 +47,39 @@ export default function AdminDashboardPage() {
       setRecentLogs(logs.slice(0, 5));
 
       let systemSavings = 0;
+      let weeklySavings = 0;
+      let monthlySavings = 0;
       let systemProfits = 0;
+
+      const now = new Date();
+      const weekStart = startOfWeek(now);
+      const weekEnd = endOfWeek(now);
+      const monthStart = startOfMonth(now);
+      const monthEnd = endOfMonth(now);
+
       for (const user of users) {
-        const userSavings = await getSavingsByUserId(user.id);
+        const userSavingsTransactions = await getSavingsByUserId(user.id);
         const userProfits = await getProfitsByUserId(user.id);
         
-        systemSavings += userSavings
-          .filter(s => s.type === 'deposit')
-          .reduce((acc, curr) => acc + curr.amount, 0);
-        systemSavings -= userSavings
-          .filter(s => s.type === 'withdrawal')
-          .reduce((acc, curr) => acc + curr.amount, 0);
+        for (const s of userSavingsTransactions) {
+          const transactionDate = parseISO(s.date);
+          const amount = s.type === 'deposit' ? s.amount : -s.amount;
+          systemSavings += amount;
+
+          if (isWithinInterval(transactionDate, { start: weekStart, end: weekEnd })) {
+            weeklySavings += amount;
+          }
+          if (isWithinInterval(transactionDate, { start: monthStart, end: monthEnd })) {
+            monthlySavings += amount;
+          }
+        }
         
         systemProfits += userProfits
           .reduce((acc, curr) => acc + curr.amount, 0);
       }
       setTotalSystemSavings(systemSavings);
+      setTotalWeeklySavings(weeklySavings);
+      setTotalMonthlySavings(monthlySavings);
       setTotalSystemProfits(systemProfits);
 
     } catch (error) {
@@ -135,6 +154,26 @@ export default function AdminDashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(totalSystemProfits)}</div>
             <p className="text-xs text-muted-foreground">Total profits generated</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Weekly Savings</CardTitle>
+            <CalendarClock className="h-5 w-5 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totalWeeklySavings)}</div>
+            <p className="text-xs text-muted-foreground">Savings this week</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Monthly Savings</CardTitle>
+            <CalendarRange className="h-5 w-5 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totalMonthlySavings)}</div>
+            <p className="text-xs text-muted-foreground">Savings this month</p>
           </CardContent>
         </Card>
       </div>
