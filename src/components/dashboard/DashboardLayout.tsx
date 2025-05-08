@@ -17,7 +17,8 @@ import {
   FileClock,
   UserPlus,
   Edit3,
-  BarChart3
+  BarChart3,
+  Menu // Added Menu icon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +35,7 @@ import { APP_NAME } from "@/lib/constants";
 import { getCurrentUser, getCurrentAdmin, logoutUser, logoutAdmin } from "@/lib/authService";
 import { useEffect, useState } from "react";
 import type { User, Admin } from "@/types";
+import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet"; // Added Sheet components
 
 interface NavItem {
   href: string;
@@ -73,6 +75,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentAdmin, setCurrentAdmin] = useState<Admin | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -96,13 +99,14 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
       logoutAdmin();
       router.push("/auth/admin-login");
     }
+    setIsMobileMenuOpen(false); // Close mobile menu on logout
   };
 
   const navItems = role === "user" ? userNavItems : adminNavItems;
   const profileName = role === "user" ? currentUser?.name : currentAdmin?.name;
   const profileEmail = role === "user" ? currentUser?.email : currentAdmin?.email;
   const profileRoleIcon = role === "user" ? UserCircle : ShieldCheck;
-  const profilePhoto = role === "user" ? currentUser?.profilePhotoUrl : `https://avatar.vercel.sh/${profileEmail}.png?s=40`; // Admin uses vercel avatar
+  const profilePhoto = role === "user" ? currentUser?.profilePhotoUrl : undefined; // Admin uses fallback or default
 
 
   if (!isClient || (role === "user" && !currentUser) || (role === "admin" && !currentAdmin)) {
@@ -113,20 +117,51 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
     );
   }
 
+  const NavContent = () => (
+    <>
+      <div className="flex h-14 items-center border-b border-sidebar-border px-4 lg:h-[60px] lg:px-6">
+        <Logo href={role === "user" ? "/dashboard/user" : "/dashboard/admin"} />
+      </div>
+      <nav className="flex-1 overflow-auto py-4 px-2 text-sm font-medium lg:px-4">
+        {navItems.map((item) => (
+          <SheetClose asChild key={item.label + '-mobile-nav'}>
+            <Link
+              href={item.href}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2 my-1 text-sidebar-foreground transition-all hover:text-sidebar-primary-foreground hover:bg-sidebar-accent ${
+                item.activePaths?.some(path => router.pathname?.startsWith(path)) ? "bg-sidebar-accent text-sidebar-primary-foreground font-semibold" : ""
+              }`}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          </SheetClose>
+        ))}
+      </nav>
+      <div className="mt-auto p-4 border-t border-sidebar-border">
+        <Button variant="ghost" className="w-full justify-start text-sidebar-foreground hover:text-sidebar-primary-foreground hover:bg-sidebar-accent" onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Logout
+        </Button>
+      </div>
+    </>
+  );
+
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <aside className="hidden border-r bg-muted/40 md:block">
+      {/* Desktop Sidebar */}
+      <aside className="hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:block">
         <div className="flex h-full max-h-screen flex-col gap-2">
-          <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+          <div className="flex h-14 items-center border-b border-sidebar-border px-4 lg:h-[60px] lg:px-6">
             <Logo href={role === "user" ? "/dashboard/user" : "/dashboard/admin"} />
           </div>
           <nav className="flex-1 overflow-auto py-4 px-2 text-sm font-medium lg:px-4">
             {navItems.map((item) => (
               <Link
-                key={item.label}
+                key={item.label + '-desktop-nav'}
                 href={item.href}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 my-1 text-muted-foreground transition-all hover:text-primary hover:bg-primary/10 ${
-                  item.activePaths?.some(path => router.pathname?.startsWith(path)) ? "bg-primary/10 text-primary font-semibold" : ""
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 my-1 text-sidebar-foreground transition-all hover:text-sidebar-primary-foreground hover:bg-sidebar-accent ${
+                  item.activePaths?.some(path => router.pathname?.startsWith(path)) ? "bg-sidebar-accent text-sidebar-primary-foreground font-semibold" : ""
                 }`}
               >
                 <item.icon className="h-4 w-4" />
@@ -134,24 +169,36 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
               </Link>
             ))}
           </nav>
-          <div className="mt-auto p-4 border-t">
-            <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
+          <div className="mt-auto p-4 border-t border-sidebar-border">
+            <Button variant="ghost" className="w-full justify-start text-sidebar-foreground hover:text-sidebar-primary-foreground hover:bg-sidebar-accent" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               Logout
             </Button>
           </div>
         </div>
       </aside>
+
+      {/* Main Content Area */}
       <div className="flex flex-col">
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
-          {/* Mobile Navigation placeholder */}
-          <Button variant="outline" size="icon" className="shrink-0 md:hidden">
-            <Settings className="h-5 w-5" /> {/* Placeholder for mobile menu icon */}
-            <span className="sr-only">Toggle navigation menu</span>
-          </Button>
+          {/* Mobile Navigation Trigger */}
+          <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon" className="shrink-0 md:hidden">
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Toggle navigation menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="flex flex-col p-0 w-[220px] sm:w-[280px] bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
+              <NavContent />
+            </SheetContent>
+          </Sheet>
+          
           <div className="w-full flex-1">
             {/* Optional: Search bar or breadcrumbs */}
           </div>
+
+          {/* User Dropdown Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="rounded-full">
@@ -171,11 +218,11 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push(role === "user" ? "/dashboard/user/profile" : "/dashboard/admin/profile")}>
+              <DropdownMenuItem onClick={() => { router.push(role === "user" ? "/dashboard/user/profile" : "/dashboard/admin/profile"); setIsMobileMenuOpen(false);}}>
                 <UserCircle className="mr-2 h-4 w-4" />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push(role === "user" ? "/dashboard/user/settings" : "/dashboard/admin/settings")}>
+              <DropdownMenuItem onClick={() => { router.push(role === "user" ? "/dashboard/user/settings" : "/dashboard/admin/settings"); setIsMobileMenuOpen(false);}}>
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
               </DropdownMenuItem>
@@ -187,11 +234,10 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
-        <main className="flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 overflow-auto bg-background">
+        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 overflow-auto bg-background">
           {children}
         </main>
       </div>
     </div>
   );
 }
-
