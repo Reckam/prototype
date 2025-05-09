@@ -36,13 +36,14 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export const getUsers = async (): Promise<User[]> => { await delay(100); return [...data.users]; };
 export const getUserById = async (id: string): Promise<User | undefined> => { await delay(100); return data.users.find(u => u.id === id); };
 
+// For admin creating a user
 export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profilePhotoUrl'>): Promise<User> => { 
   await delay(100); 
   if (data.users.some(u => u.username === userStub.username)) {
     throw new Error("User with this username already exists.");
   }
   const newUser: User = { 
-    id: `user_${Date.now()}`, 
+    id: `user_admin_${Date.now()}`, 
     name: userStub.name, 
     username: userStub.username, 
     createdAt: new Date().toISOString(),
@@ -53,6 +54,26 @@ export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profil
   data.users.push(newUser); 
   return newUser; 
 };
+
+// For user self-registration
+export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'createdAt'>): Promise<User> => {
+  await delay(100);
+  if (data.users.some(u => u.username === userData.username)) {
+    throw new Error("User with this username already exists.");
+  }
+  const newUser: User = {
+    id: `user_self_${Date.now()}`,
+    name: userData.name,
+    username: userData.username,
+    password: userData.password, // User-defined password
+    profilePhotoUrl: userData.profilePhotoUrl,
+    forcePasswordChange: false, // No forced change for self-registered users
+    createdAt: new Date().toISOString(),
+  };
+  data.users.push(newUser);
+  return newUser;
+};
+
 
 export const updateUser = async (id: string, updates: Partial<User>): Promise<User | undefined> => {
   await delay(100);

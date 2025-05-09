@@ -4,54 +4,39 @@
 
 import type { User, Admin } from '@/types';
 import { USER_STORAGE_KEY, ADMIN_STORAGE_KEY } from '@/lib/constants';
-import { getUsers, getAdmins, addUser as addDataUserForAdmin, updateUser as updateUserDataService, getUserById as getDataUserById } from './dataService'; 
+import { getUsers, getAdmins, createUserFromRegistration, addAuditLog, updateUser as updateUserDataService, getUserById as getDataUserById } from './dataService'; 
 
 // User Authentication
 export const registerUser = async (name: string, username: string, passwordPlain: string, profilePhotoUrl?: string): Promise<{ user?: User, error?: string }> => {
-  const existingUser = (await getUsers()).find(u => u.username === username);
-  if (existingUser) {
-    return { error: "User already exists with this username." };
-  }
-
-  // Create the full user object for self-registration
-  const newUser: User = { 
-    id: `user_self_${Date.now()}`, 
-    name, 
-    username, 
-    createdAt: new Date().toISOString(),
-    profilePhotoUrl,
-    password: passwordPlain, // User sets their own password
-    forcePasswordChange: false, // No forced change for self-registered users
-  };
-
-  // In a real app, dataService.addUser would handle this insertion.
-  // For this mock, we directly manipulate the "database" or use updateUser if addUser is too specific.
-  // Let's assume updateUser can create if ID doesn't exist, or add a specific "create user" function in dataService.
-  // For now, we'll use updateUser which can also set all fields.
-  // To ensure it's "added" if not existing, we can check or rely on dataService logic.
-  // A cleaner approach would be a dedicated createUser in dataService.
-  // Let's simulate by pushing to the array for this mock.
-  // This is a simplified mock, direct push into the "data.users" array isn't ideal.
-  // A better approach:
   try {
-    // data.users.push(newUser); // This would be direct manipulation if dataService was not async
-    // We'll use updateUser, assuming it can create if not found or we adapt dataService.addUser.
-    // For this example, we will assume we can just create the user and "update" it with all details.
-    // This part is tricky due to the mock nature. A real API call would be cleaner.
+    const createdUser = await createUserFromRegistration({
+      name,
+      username,
+      password: passwordPlain,
+      profilePhotoUrl,
+      forcePasswordChange: false, // Self-registered users set their own password
+    });
 
-    // A more direct way to handle this with the current dataService.ts:
-    const users = await getUsers(); // Get current users
-    const dataUsers = (data as any).users as User[]; // Access internal data for mock
-    dataUsers.push(newUser); // Simulate adding to the 'database'
-
-    // And then ensure it's retrievable by dataService
-    const savedUser = await getDataUserById(newUser.id);
-    if (!savedUser) throw new Error("Mock user creation failed during registration process.");
-
-    return { user: savedUser };
-
+    if (createdUser) {
+      // Add audit log for admin notification
+      const admins = await getAdmins();
+      if (admins.length > 0) {
+        const reportingAdmin = admins[0]; // Use first admin as a placeholder for system/auto-logged events
+        await addAuditLog({
+          adminId: reportingAdmin.id,
+          adminName: reportingAdmin.name,
+          action: `New user self-registered: ${username}`,
+          timestamp: new Date().toISOString(),
+          details: { userId: createdUser.id, username: createdUser.username, name: createdUser.name }
+        });
+      }
+      return { user: createdUser };
+    } else {
+      // This case should ideally not be reached if createUserFromRegistration throws errors for failures
+      return { error: "Failed to create user account." };
+    }
   } catch (e: any) {
-    return { error: "Failed to register user: " + e.message };
+    return { error: e.message || "Failed to register user." };
   }
 };
 
@@ -174,10 +159,16 @@ export const loginAdmin = async (username: string, passwordPlain: string): Promi
     } 
     else if (admin.email !== "admin") {
         // Mock: allow other admins if they exist, without password check for now
+        // In a real app, you'd check their actual hashed password.
+        // For this mock, we'll assume other admins might have different mock passwords or no check.
+        // This part is simplified for the mock.
+        // To make it more realistic, each admin should have a password property.
+        // For now, let's stick to the default admin/0000 for simplicity or assume other admins also use 0000 if not 'admin'.
+        // If you want specific passwords for other mock admins, they need to be added to the Admin type and data.
         if (typeof window !== 'undefined') {
             localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(admin));
         }
-        return { admin };
+        return { admin }; // Simplified: allows login if admin record exists (excluding the default 'admin' logic above)
     }
   }
   return { error: "Invalid admin credentials" };
