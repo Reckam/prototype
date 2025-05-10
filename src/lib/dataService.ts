@@ -5,8 +5,8 @@ import type { User, Admin, SavingTransaction, ProfitEntry, LoanRequest, AuditLog
 // Initialize with some mock data
 let data: AppData = {
   users: [
-    { id: 'user1', name: 'Alice Wonderland', username: 'alice', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(), password: 'password123', forcePasswordChange: false },
-    { id: 'user2', name: 'Bob The Builder', username: 'bob', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString(), password: 'password456', forcePasswordChange: false },
+    { id: 'user1', name: 'Alice Wonderland', username: 'alice', contact: '0777123456', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(), password: 'password123', forcePasswordChange: false },
+    { id: 'user2', name: 'Bob The Builder', username: 'bob', contact: '0788123456', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString(), password: 'password456', forcePasswordChange: false },
   ],
   admins: [
     { id: 'admin1', name: 'Super Admin', email: 'admin' }, 
@@ -37,7 +37,7 @@ export const getUsers = async (): Promise<User[]> => { await delay(100); return 
 export const getUserById = async (id: string): Promise<User | undefined> => { await delay(100); return data.users.find(u => u.id === id); };
 
 // For admin creating a user
-export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profilePhotoUrl'>): Promise<User> => { 
+export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profilePhotoUrl' | 'contact'>): Promise<User> => { 
   await delay(100); 
   if (data.users.some(u => u.username === userStub.username)) {
     throw new Error("User with this username already exists.");
@@ -46,6 +46,7 @@ export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profil
     id: `user_admin_${Date.now()}`, 
     name: userStub.name, 
     username: userStub.username, 
+    contact: userStub.contact,
     createdAt: new Date().toISOString(),
     password: "1234", // Default password for admin-created users
     forcePasswordChange: true, // Force change on first login
@@ -65,6 +66,7 @@ export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'cr
     id: `user_self_${Date.now()}`,
     name: userData.name,
     username: userData.username,
+    contact: userData.contact,
     password: userData.password, // User-defined password
     profilePhotoUrl: userData.profilePhotoUrl,
     forcePasswordChange: false, // No forced change for self-registered users

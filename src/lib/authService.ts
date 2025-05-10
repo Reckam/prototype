@@ -7,12 +7,13 @@ import { USER_STORAGE_KEY, ADMIN_STORAGE_KEY } from '@/lib/constants';
 import { getUsers, getAdmins, createUserFromRegistration, addAuditLog, updateUser as updateUserDataService, getUserById as getDataUserById } from './dataService'; 
 
 // User Authentication
-export const registerUser = async (name: string, username: string, passwordPlain: string, profilePhotoUrl?: string): Promise<{ user?: User, error?: string }> => {
+export const registerUser = async (name: string, username: string, passwordPlain: string, contact?: string, profilePhotoUrl?: string): Promise<{ user?: User, error?: string }> => {
   try {
     const createdUser = await createUserFromRegistration({
       name,
       username,
       password: passwordPlain,
+      contact,
       profilePhotoUrl,
       forcePasswordChange: false, // Self-registered users set their own password
     });
@@ -27,7 +28,7 @@ export const registerUser = async (name: string, username: string, passwordPlain
           adminName: reportingAdmin.name,
           action: `New user self-registered: ${username}`,
           timestamp: new Date().toISOString(),
-          details: { userId: createdUser.id, username: createdUser.username, name: createdUser.name }
+          details: { userId: createdUser.id, username: createdUser.username, name: createdUser.name, contact: createdUser.contact }
         });
       }
       return { user: createdUser };
@@ -111,7 +112,7 @@ export const changeUserPassword = async (userId: string, currentPasswordPlain: s
 
   const updatedUser = await updateUserDataService(userId, { password: newPasswordPlain });
   if (updatedUser) {
-    updateUserInSession(updatedUser);
+    updateUserInSession(updatedUser); // Update session with new user details (including potentially changed password if stored - though usually not directly)
     return { success: true, message: "Password updated successfully." };
   } else {
     return { success: false, message: "Failed to update password in data service." };
@@ -151,24 +152,20 @@ export const loginAdmin = async (username: string, passwordPlain: string): Promi
   const admin = admins.find(a => a.email === username); 
   
   if (admin) {
+    // For the specific admin with email "admin", password must be "0000"
     if (admin.email === "admin" && passwordPlain === "0000") {
       if (typeof window !== 'undefined') {
         localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(admin));
       }
       return { admin };
     } 
+    // For any other admin, in this mock, we are not checking password for simplicity.
+    // A real app would check a hashed password.
     else if (admin.email !== "admin") {
-        // Mock: allow other admins if they exist, without password check for now
-        // In a real app, you'd check their actual hashed password.
-        // For this mock, we'll assume other admins might have different mock passwords or no check.
-        // This part is simplified for the mock.
-        // To make it more realistic, each admin should have a password property.
-        // For now, let's stick to the default admin/0000 for simplicity or assume other admins also use 0000 if not 'admin'.
-        // If you want specific passwords for other mock admins, they need to be added to the Admin type and data.
         if (typeof window !== 'undefined') {
             localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(admin));
         }
-        return { admin }; // Simplified: allows login if admin record exists (excluding the default 'admin' logic above)
+        return { admin }; 
     }
   }
   return { error: "Invalid admin credentials" };

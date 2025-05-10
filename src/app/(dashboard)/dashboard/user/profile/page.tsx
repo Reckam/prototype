@@ -1,3 +1,4 @@
+
 "use client";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { UserCircle, Edit, Save, KeyRound } from "lucide-react";
+import { UserCircle, Edit, Save, KeyRound, Phone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getCurrentUser, updateUserInSession, changeUserPassword } from "@/lib/authService";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +20,7 @@ export default function UserProfilePage() {
   const [initialUsername, setInitialUsername] = useState("");
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
+  const [contact, setContact] = useState("");
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | undefined>(undefined);
   const [newProfilePhotoPreview, setNewProfilePhotoPreview] = useState<string | null>(null);
   
@@ -42,6 +44,7 @@ export default function UserProfilePage() {
       setUser(currentUser);
       setName(currentUser.name);
       setUsername(currentUser.username);
+      setContact(currentUser.contact || "");
       setInitialUsername(currentUser.username);
       setProfilePhotoUrl(currentUser.profilePhotoUrl);
       setNewProfilePhotoPreview(currentUser.profilePhotoUrl || null);
@@ -74,6 +77,7 @@ export default function UserProfilePage() {
         if(user){
             setName(user.name);
             setUsername(user.username);
+            setContact(user.contact || "");
             setNewProfilePhotoPreview(user.profilePhotoUrl || null);
             setUsernameAvailable(null); 
         }
@@ -104,7 +108,7 @@ export default function UserProfilePage() {
 
     setIsLoadingSaveProfile(true);
     try {
-      const updatedUserData: Partial<User> = { name, username, profilePhotoUrl: newProfilePhotoPreview || undefined };
+      const updatedUserData: Partial<User> = { name, username, contact, profilePhotoUrl: newProfilePhotoPreview || undefined };
       
       const updatedUserResponse = await updateUserDataService(user.id, updatedUserData);
       if (updatedUserResponse) {
@@ -112,6 +116,7 @@ export default function UserProfilePage() {
         setUser(updatedUserResponse);
         setInitialUsername(updatedUserResponse.username); 
         setProfilePhotoUrl(updatedUserResponse.profilePhotoUrl); 
+        setContact(updatedUserResponse.contact || "");
         toast({ title: "Profile Updated", description: "Your profile details have been saved." });
         setIsEditing(false);
         setUsernameAvailable(null); 
@@ -240,6 +245,21 @@ export default function UserProfilePage() {
             {isEditing && usernameAvailable === false && username !== initialUsername && <p className="text-xs text-red-600">Username taken.</p>}
           </div>
            <div className="space-y-2">
+            <Label htmlFor="contact">Contact (Phone Number)</Label>
+            <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                id="contact"
+                type="tel"
+                placeholder="07XX XXX XXX"
+                value={contact}
+                onChange={(e) => setContact(e.target.value)}
+                disabled={!isEditing || isLoadingSaveProfile}
+                className="text-base pl-10"
+                />
+            </div>
+          </div>
+           <div className="space-y-2">
             <Label htmlFor="joined">Joined On</Label>
             <Input
               id="joined"
@@ -249,6 +269,12 @@ export default function UserProfilePage() {
             />
           </div>
           
+          {isEditing && (
+            <Button variant="outline" onClick={() => {setIsEditing(false); setName(user.name); setUsername(user.username); setContact(user.contact || ""); setNewProfilePhotoPreview(user.profilePhotoUrl || null); setUsernameAvailable(null);}}>
+                Cancel Edit
+            </Button>
+          )}
+
           <Card className="mt-6 bg-secondary/10 border-border shadow-inner">
             <CardHeader>
               <CardTitle className="text-lg flex items-center"><KeyRound className="mr-2 h-5 w-5 text-primary"/> Change Password</CardTitle>

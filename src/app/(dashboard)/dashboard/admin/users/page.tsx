@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { getUsers, deleteUser as deleteDataUser, updateUserSavings, getSavingsByUserId, getProfitsByUserId, getLoansByUserId, addAuditLog } from "@/lib/dataService";
 import { useToast } from "@/hooks/use-toast";
 import type { User, SavingTransaction, ProfitEntry, LoanRequest, Admin } from "@/types";
-import { Users, PlusCircle, Edit, Trash2, Eye, RefreshCw } from "lucide-react";
+import { Users, PlusCircle, Edit, Trash2, Eye, RefreshCw, Phone } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
@@ -30,6 +30,8 @@ export default function ManageUsersPage() {
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<UserWithDetails | null>(null);
   const [newSavingsAmount, setNewSavingsAmount] = useState<string>("");
   const [admin, setAdmin] = useState<Admin | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
 
   const { toast } = useToast();
 
@@ -118,6 +120,11 @@ export default function ManageUsersPage() {
     }
   };
 
+  const filteredUsers = users.filter(user =>
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.contact && user.contact.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX' }).format(amount);
@@ -135,16 +142,23 @@ export default function ManageUsersPage() {
 
   return (
     <DashboardLayout role="admin">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
         <h1 className="text-2xl font-semibold flex items-center">
           <Users className="mr-3 h-6 w-6 text-primary" /> Manage Users
         </h1>
-        <div>
-          <Button variant="outline" size="icon" onClick={fetchUsers} className="mr-2">
+        <div className="flex gap-2 w-full sm:w-auto">
+           <Input 
+            type="search"
+            placeholder="Search users..."
+            className="max-w-xs w-full"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <Button variant="outline" size="icon" onClick={fetchUsers} className="mr-2 shrink-0">
             <RefreshCw className="h-4 w-4" />
             <span className="sr-only">Refresh Users</span>
           </Button>
-          <Button asChild>
+          <Button asChild className="shrink-0">
             <Link href="/dashboard/admin/users/add">
               <PlusCircle className="mr-2 h-4 w-4" /> Add New User
             </Link>
@@ -158,12 +172,13 @@ export default function ManageUsersPage() {
           <CardDescription>View, edit, and manage all users in the system.</CardDescription>
         </CardHeader>
         <CardContent>
-          {users.length > 0 ? (
+          {filteredUsers.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Username</TableHead> {/* Changed from Email */}
+                  <TableHead>Username</TableHead>
+                  <TableHead>Contact</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead className="text-right">Total Savings</TableHead>
                   <TableHead className="text-right">Total Profits</TableHead>
@@ -172,10 +187,11 @@ export default function ManageUsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
+                {filteredUsers.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell>{user.username}</TableCell> {/* Changed from user.email */}
+                    <TableCell>{user.username}</TableCell>
+                    <TableCell>{user.contact || 'N/A'}</TableCell>
                     <TableCell>{format(new Date(user.createdAt), "PP")}</TableCell>
                     <TableCell className="text-right">{formatCurrency(user.totalSavings)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(user.totalProfits)}</TableCell>
@@ -183,9 +199,8 @@ export default function ManageUsersPage() {
                     <TableCell className="text-right space-x-1">
                        <Dialog>
                         <DialogTrigger asChild>
-                           <Button variant="outline" size="icon" onClick={() => handleEditSavings(user)}>
-                            <Edit className="h-4 w-4" />
-                            <span className="sr-only">Edit Savings</span>
+                           <Button variant="outline" size="sm" onClick={() => handleEditSavings(user)}> {/* Changed to size sm */}
+                            <Edit className="mr-1 h-3 w-3" /> Edit Savings
                           </Button>
                         </DialogTrigger>
                         {selectedUserForEdit && selectedUserForEdit.id === user.id && (
@@ -231,7 +246,9 @@ export default function ManageUsersPage() {
           ) : (
              <div className="text-center py-8">
               <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No users found in the system.</p>
+              <p className="text-muted-foreground">
+                {searchTerm ? "No users match your search criteria." : "No users found in the system."}
+              </p>
                <Button asChild className="mt-4">
                 <Link href="/dashboard/admin/users/add">Add First User</Link>
               </Button>

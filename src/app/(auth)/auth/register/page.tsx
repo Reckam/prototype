@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { registerUser } from "@/lib/authService";
 import { APP_NAME } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Camera } from "lucide-react";
+import { UserPlus, Camera, Phone } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -17,9 +18,10 @@ export default function UserRegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [name, setName] = useState("");
-  const [username, setUsername] = useState(""); // Changed from email
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [contact, setContact] = useState("");
   const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -47,7 +49,7 @@ export default function UserRegisterPage() {
       return;
     }
     setIsLoading(true);
-    const { user, error } = await registerUser(name, username, password, profilePhotoPreview || undefined); // Changed email to username
+    const { user, error } = await registerUser(name, username, password, contact, profilePhotoPreview || undefined);
     setIsLoading(false);
 
     if (user) {
@@ -85,15 +87,30 @@ export default function UserRegisterPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label> {/* Changed from Email */}
+            <Label htmlFor="username">Username</Label>
             <Input
               id="username"
-              type="text" // Changed from email
-              placeholder="your_username" // Changed placeholder
+              type="text"
+              placeholder="your_username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="contact">Contact (Phone Number)</Label>
+            <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                id="contact"
+                type="tel"
+                placeholder="07XX XXX XXX"
+                value={contact}
+                onChange={(e) => setContact(e.target.value)}
+                required
+                className="pl-10"
+                />
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
@@ -103,6 +120,7 @@ export default function UserRegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              placeholder="Create a password"
             />
           </div>
           <div className="space-y-2">
@@ -113,6 +131,7 @@ export default function UserRegisterPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
+              placeholder="Confirm your password"
             />
           </div>
           <div className="space-y-2">

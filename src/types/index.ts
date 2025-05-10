@@ -2,6 +2,7 @@ export interface User {
   id: string;
   username: string; // Changed from email to username
   name: string;
+  contact?: string; // Added for contact number
   createdAt: string;
   profilePhotoUrl?: string; // Added for profile photo
   password?: string; // Added for storing mock password
@@ -61,3 +62,4 @@ export interface AppData {
   loans: LoanRequest[];
   auditLogs: AuditLogEntry[];
 }
+
