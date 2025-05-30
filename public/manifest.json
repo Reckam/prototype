@@ -1,0 +1,10 @@
+{
+  "name": "TYTC SAVING SCHEME",
+  "short_name": "TYTC Scheme",
+  "description": "Manage your SACCO savings and loans with TYTC SAVING SCHEME.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f5f5",
+  "theme_color": "#4CAF50",
+  "icons": []
+}
