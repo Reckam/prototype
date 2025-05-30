@@ -3,7 +3,7 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  distDir: 'build',
+  // distDir: 'build', // Reverted to default for Vercel
   typescript: {
     ignoreBuildErrors: true,
   },
