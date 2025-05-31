@@ -20,7 +20,7 @@ export default function AuthLayout({
           data-ai-hint="group photo tytc"
           layout="fill"
           objectFit="cover"
-          className="opacity-30"
+          className="" // Removed opacity-30
         />
         <div className="relative z-10 text-center text-primary-foreground">
           <h1 className="text-3xl font-bold mb-2">Proverbs 6:6</h1>

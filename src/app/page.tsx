@@ -58,7 +58,7 @@ export default function LandingPage() {
                 </div>
               </div>
               <Image
-                src="/tytc-group-photo.jpg"
+                src="/tytc-group-photo.jpg" 
                 width="600"
                 height="400"
                 alt="TYTC Group Photo"
@@ -80,7 +80,7 @@ export default function LandingPage() {
                 </p>
               </div>
             </div>
-            <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:grid-cols-2 mt-12"> {/* Updated grid-cols to lg:grid-cols-2 */}
+            <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:grid-cols-2 mt-12"> 
               <Card>
                 <CardHeader>
                   <PiggyBank className="h-8 w-8 text-primary mb-2" />
