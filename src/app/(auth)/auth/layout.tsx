@@ -1,6 +1,5 @@
 
 import { Logo } from "@/components/shared/Logo";
-import Image from "next/image";
 
 export default function AuthLayout({
   children,
@@ -14,15 +13,7 @@ export default function AuthLayout({
         {children}
       </div>
       <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-primary p-12 relative overflow-hidden">
-        <Image
-          src="/tytc-group-photo.jpg"
-          alt="TYTC Group Photo"
-          data-ai-hint="group photo tytc"
-          width={500} 
-          height={500} 
-          objectFit="cover"
-          className="rounded-lg shadow-xl" 
-        />
+        {/* Image removed */}
         <div className="relative z-10 text-center text-primary-foreground">
           <h1 className="text-3xl font-bold mb-2">Proverbs 6:6</h1>
           <p className="text-lg mb-1 px-4">Go to the ant, you sluggard! Consider her ways and be wise,</p>

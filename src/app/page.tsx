@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PiggyBank, LogIn, UserPlus, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { APP_NAME } from "@/lib/constants";
-import Image from "next/image";
+// Image import removed
 
 export default function LandingPage() {
   return (
@@ -32,7 +32,7 @@ export default function LandingPage() {
       <main className="flex-1">
         <section className="w-full py-12 md:py-24 lg:py-32">
           <div className="container px-4 md:px-6">
-            <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
+            <div className="grid gap-6 lg:grid-cols-2 lg:gap-12"> {/* Adjusted grid layout */}
               <div className="flex flex-col justify-center space-y-4">
                 <div className="space-y-2">
                   <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
@@ -57,14 +57,10 @@ export default function LandingPage() {
                   </Button>
                 </div>
               </div>
-              <Image
-                src="/tytc-group-photo.jpg" 
-                width="600"
-                height="400"
-                alt="TYTC Group Photo"
-                data-ai-hint="group photo tytc"
-                className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last lg:aspect-square shadow-lg"
-              />
+              {/* Image component removed from here. The div will now take full width on larger screens if not constrained. */}
+              <div className="flex items-center justify-center bg-muted rounded-xl p-8 lg:p-12 shadow-lg">
+                <PiggyBank className="h-32 w-32 text-primary" />
+              </div>
             </div>
           </div>
         </section>

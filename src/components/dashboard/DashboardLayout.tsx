@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { ReactNode } from "react";
@@ -18,7 +19,7 @@ import {
   UserPlus,
   Edit3,
   BarChart3,
-  Menu // Added Menu icon
+  Menu
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,7 +36,7 @@ import { APP_NAME } from "@/lib/constants";
 import { getCurrentUser, getCurrentAdmin, logoutUser, logoutAdmin } from "@/lib/authService";
 import { useEffect, useState } from "react";
 import type { User, Admin } from "@/types";
-import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet"; // Added Sheet components
+import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 
 interface NavItem {
   href: string;
@@ -99,14 +100,15 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
       logoutAdmin();
       router.push("/auth/admin-login");
     }
-    setIsMobileMenuOpen(false); // Close mobile menu on logout
+    setIsMobileMenuOpen(false); 
   };
 
   const navItems = role === "user" ? userNavItems : adminNavItems;
   const profileName = role === "user" ? currentUser?.name : currentAdmin?.name;
-  const profileIdentifier = role === "user" ? currentUser?.username : currentAdmin?.email; // Use username for user, email for admin
+  const profileIdentifier = role === "user" ? currentUser?.username : currentAdmin?.email; 
   const profileRoleIcon = role === "user" ? UserCircle : ShieldCheck;
-  const profilePhoto = role === "user" ? currentUser?.profilePhotoUrl : undefined; 
+  // Use profilePhotoDataUrl from user state for AvatarImage src
+  const profilePhotoToDisplay = role === "user" ? currentUser?.profilePhotoUrl : undefined;
 
 
   if (!isClient || (role === "user" && !currentUser) || (role === "admin" && !currentAdmin)) {
@@ -149,7 +151,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      {/* Desktop Sidebar */}
+      
       <aside className="hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:block">
         <div className="flex h-full max-h-screen flex-col gap-2">
           <div className="flex h-14 items-center border-b border-sidebar-border px-4 lg:h-[60px] lg:px-6">
@@ -178,10 +180,10 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         </div>
       </aside>
 
-      {/* Main Content Area */}
+      
       <div className="flex flex-col">
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
-          {/* Mobile Navigation Trigger */}
+          
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon" className="shrink-0 md:hidden">
@@ -198,12 +200,12 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
             {/* Optional: Search bar or breadcrumbs */}
           </div>
 
-          {/* User Dropdown Menu */}
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="rounded-full">
                 <Avatar>
-                  <AvatarImage src={profilePhoto || undefined} alt={profileName || "User"} data-ai-hint="user avatar" />
+                  <AvatarImage src={profilePhotoToDisplay || undefined} alt={profileName || "User"} />
                   <AvatarFallback>{profileName?.charAt(0).toUpperCase() || (role === "user" ? "U" : "A")}</AvatarFallback>
                 </Avatar>
                 <span className="sr-only">Toggle user menu</span>

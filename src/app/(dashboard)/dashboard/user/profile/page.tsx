@@ -21,8 +21,7 @@ export default function UserProfilePage() {
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [contact, setContact] = useState("");
-  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | undefined>(undefined);
-  const [newProfilePhotoPreview, setNewProfilePhotoPreview] = useState<string | null>(null);
+  const [profilePhotoDataUrl, setProfilePhotoDataUrl] = useState<string | undefined>(undefined); // Store data URL for update
   
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -46,8 +45,7 @@ export default function UserProfilePage() {
       setUsername(currentUser.username);
       setContact(currentUser.contact || "");
       setInitialUsername(currentUser.username);
-      setProfilePhotoUrl(currentUser.profilePhotoUrl);
-      setNewProfilePhotoPreview(currentUser.profilePhotoUrl || null);
+      setProfilePhotoDataUrl(currentUser.profilePhotoUrl); // Keep original URL for AvatarImage
     }
     setPageLoading(false);
   }, []);
@@ -60,7 +58,7 @@ export default function UserProfilePage() {
             setUsernameAvailable(isAvailable);
             setUsernameCheckLoading(false);
         } else if (username === initialUsername) {
-             setUsernameAvailable(null); // Reset if back to original or same
+             setUsernameAvailable(null); 
         } else {
             setUsernameAvailable(null);
         }
@@ -73,12 +71,12 @@ export default function UserProfilePage() {
 
 
   const handleEditToggle = () => {
-      if(isEditing){ // If was editing, now cancelling
+      if(isEditing){ 
         if(user){
             setName(user.name);
             setUsername(user.username);
             setContact(user.contact || "");
-            setNewProfilePhotoPreview(user.profilePhotoUrl || null);
+            setProfilePhotoDataUrl(user.profilePhotoUrl); // Reset to original data URL if cancelling
             setUsernameAvailable(null); 
         }
       }
@@ -90,11 +88,12 @@ export default function UserProfilePage() {
       const file = e.target.files[0];
       const reader = new FileReader();
       reader.onloadend = () => {
-        setNewProfilePhotoPreview(reader.result as string);
+        setProfilePhotoDataUrl(reader.result as string); // Update for potential save
       };
       reader.readAsDataURL(file);
     } else {
-      setNewProfilePhotoPreview(profilePhotoUrl || null); 
+      // If no file selected, revert to original or existing photo if user had one
+      setProfilePhotoDataUrl(user?.profilePhotoUrl || undefined);
     }
   };
 
@@ -108,14 +107,15 @@ export default function UserProfilePage() {
 
     setIsLoadingSaveProfile(true);
     try {
-      const updatedUserData: Partial<User> = { name, username, contact, profilePhotoUrl: newProfilePhotoPreview || undefined };
+      // Pass profilePhotoDataUrl for update. It might be a new data URL or the original one.
+      const updatedUserData: Partial<User> = { name, username, contact, profilePhotoUrl: profilePhotoDataUrl };
       
       const updatedUserResponse = await updateUserDataService(user.id, updatedUserData);
       if (updatedUserResponse) {
         updateUserInSession(updatedUserResponse); 
         setUser(updatedUserResponse);
         setInitialUsername(updatedUserResponse.username); 
-        setProfilePhotoUrl(updatedUserResponse.profilePhotoUrl); 
+        setProfilePhotoDataUrl(updatedUserResponse.profilePhotoUrl); 
         setContact(updatedUserResponse.contact || "");
         toast({ title: "Profile Updated", description: "Your profile details have been saved." });
         setIsEditing(false);
@@ -200,7 +200,8 @@ export default function UserProfilePage() {
         <CardContent className="space-y-6">
           <div className="flex flex-col items-center space-y-4">
             <Avatar className="h-32 w-32 border-4 border-primary shadow-lg">
-              <AvatarImage src={newProfilePhotoPreview || profilePhotoUrl} alt={user.name} data-ai-hint="user avatar" />
+              {/* AvatarImage src will be undefined if profilePhotoDataUrl is undefined, forcing fallback */}
+              <AvatarImage src={profilePhotoDataUrl || undefined} alt={user.name} />
               <AvatarFallback className="text-4xl">
                 {user.name ? user.name.charAt(0).toUpperCase() : <UserCircle />}
               </AvatarFallback>
@@ -270,7 +271,7 @@ export default function UserProfilePage() {
           </div>
           
           {isEditing && (
-            <Button variant="outline" onClick={() => {setIsEditing(false); setName(user.name); setUsername(user.username); setContact(user.contact || ""); setNewProfilePhotoPreview(user.profilePhotoUrl || null); setUsernameAvailable(null);}}>
+            <Button variant="outline" onClick={() => {setIsEditing(false); setName(user.name); setUsername(user.username); setContact(user.contact || ""); setProfilePhotoDataUrl(user.profilePhotoUrl); setUsernameAvailable(null);}}>
                 Cancel Edit
             </Button>
           )}
