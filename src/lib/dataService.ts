@@ -2,30 +2,17 @@
 // Mock data service
 import type { User, Admin, SavingTransaction, ProfitEntry, LoanRequest, AuditLogEntry, AppData, LoanStatus } from '@/types';
 
-// Initialize with some mock data
+// Initialize with minimal mock data (only admin)
 let data: AppData = {
-  users: [
-    { id: 'user1', name: 'Alice Wonderland', username: 'alice', contact: '0777123456', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(), password: 'password123', forcePasswordChange: false },
-    { id: 'user2', name: 'Bob The Builder', username: 'bob', contact: '0788123456', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString(), password: 'password456', forcePasswordChange: false },
-  ],
+  users: [], // Start with no users
   admins: [
     { id: 'admin1', name: 'Super Admin', email: 'admin' }, 
   ],
-  savings: [
-    { id: 's1', userId: 'user1', amount: 3500000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 25).toISOString(), type: 'deposit' }, // UGX amounts
-    { id: 's2', userId: 'user1', amount: 1750000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15).toISOString(), type: 'deposit' }, // UGX amounts
-    { id: 's3', userId: 'user2', amount: 7000000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 50).toISOString(), type: 'deposit' }, // UGX amounts
-  ],
-  profits: [
-    { id: 'p1', userId: 'user1', amount: 175000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(), description: 'Monthly interest' }, // UGX amounts
-    { id: 'p2', userId: 'user2', amount: 350000, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(), description: 'Quarterly bonus' }, // UGX amounts
-  ],
-  loans: [
-    { id: 'l1', userId: 'user1', userName: 'Alice Wonderland', amount: 1750000, reason: 'Emergency', status: 'pending', requestedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString() }, // UGX amounts
-    { id: 'l2', userId: 'user2', userName: 'Bob The Builder', amount: 3500000, reason: 'Home improvement', status: 'approved', requestedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString(), reviewedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 18).toISOString() }, // UGX amounts
-  ],
-  auditLogs: [
-    { id: 'log1', adminId: 'admin1', adminName: 'Super Admin', action: 'Approved loan #l2 for Bob The Builder', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 18).toISOString() },
+  savings: [], // Start with no savings transactions
+  profits: [], // Start with no profit entries
+  loans: [],   // Start with no loan requests
+  auditLogs: [ // Optionally, keep a very first log or clear this too
+     { id: 'log_init', adminId: 'admin1', adminName: 'Super Admin', action: 'System Initialized', timestamp: new Date().toISOString(), details: { status: 'Brand new state' } },
   ],
 };
 
@@ -53,6 +40,17 @@ export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profil
     profilePhotoUrl: userStub.profilePhotoUrl,
   };
   data.users.push(newUser); 
+  
+  const admin = data.admins[0]; // Assuming first admin for audit log
+   if (admin) {
+    await addAuditLog({
+      adminId: admin.id,
+      adminName: admin.name,
+      action: `Admin created new user: ${newUser.username}`,
+      timestamp: new Date().toISOString(),
+      details: { userId: newUser.id, username: newUser.username, name: newUser.name }
+    });
+  }
   return newUser; 
 };
 
@@ -73,6 +71,19 @@ export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'cr
     createdAt: new Date().toISOString(),
   };
   data.users.push(newUser);
+
+  // Add audit log for admin notification
+  const admins = await getAdmins();
+  if (admins.length > 0) {
+    const reportingAdmin = admins[0]; 
+    await addAuditLog({
+      adminId: reportingAdmin.id,
+      adminName: reportingAdmin.name,
+      action: `New user self-registered: ${newUser.username}`,
+      timestamp: new Date().toISOString(),
+      details: { userId: newUser.id, username: newUser.username, name: newUser.name, contact: newUser.contact }
+    });
+  }
   return newUser;
 };
 
@@ -86,8 +97,14 @@ export const updateUser = async (id: string, updates: Partial<User>): Promise<Us
   if (updates.username && data.users.some(u => u.username === updates.username && u.id !== id)) {
     throw new Error("Username already taken.");
   }
-
+  
+  const oldUserData = { ...data.users[userIndex] };
   data.users[userIndex] = { ...data.users[userIndex], ...updates };
+  
+  // Log sensitive changes like password or username update by admin (if possible to detect context)
+  // For now, this is a general update. Specific audit logs for password changes are in authService.
+  // If an admin performed this, it should be logged by the calling function with admin context.
+
   return data.users[userIndex];
 };
 
@@ -155,8 +172,6 @@ export const updateUserSavings = async (userId: string, amount: number, date: st
       timestamp: new Date().toISOString(),
       details: { userId: userId, newTotalSavings: amount, currentTotalSavings: currentTotalSavings, date: date }
     });
-    // Find the last transaction to return or return undefined if no change made.
-    // For this mock, we can just say no new transaction was made.
     return undefined;
   }
 
@@ -243,3 +258,4 @@ export const addAuditLog = async (logEntry: Omit<AuditLogEntry, 'id'>): Promise<
   data.auditLogs.push(newLog);
   return newLog;
 };
+
