@@ -4,12 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PiggyBank, LogIn, UserPlus, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { APP_NAME } from "@/lib/constants";
-// Image import removed
 
 export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pt-4">
         <div className="container flex h-14 items-center">
           <Link href="/" className="flex items-center space-x-2">
             <PiggyBank className="h-6 w-6 text-primary" />
@@ -57,7 +56,6 @@ export default function LandingPage() {
                   </Button>
                 </div>
               </div>
-              {/* Image component removed from here. The div will now take full width on larger screens if not constrained. */}
               <div className="flex items-center justify-center bg-muted rounded-xl p-8 lg:p-12 shadow-lg">
                 <PiggyBank className="h-32 w-32 text-primary" />
               </div>
