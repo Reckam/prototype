@@ -1,3 +1,4 @@
+
 import { Logo } from "@/components/shared/Logo";
 import Image from "next/image";
 
@@ -14,16 +15,20 @@ export default function AuthLayout({
       </div>
       <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-primary p-12 relative overflow-hidden">
         <Image
-          src="https://picsum.photos/800/1000"
-          alt="Savings Central illustration"
-          data-ai-hint="financial growth savings"
+          src="/tytc-group-photo.jpg"
+          alt="TYTC Group Photo"
+          data-ai-hint="group photo tytc"
           layout="fill"
           objectFit="cover"
           className="opacity-30"
         />
         <div className="relative z-10 text-center text-primary-foreground">
-          <h1 className="text-4xl font-bold mb-4">Welcome to Savings Central</h1>
-          <p className="text-lg">Your trusted partner for managing savings and loans effectively.</p>
+          <h1 className="text-3xl font-bold mb-2">Proverbs 6:6</h1>
+          <p className="text-lg mb-1 px-4">Go to the ant, you sluggard! Consider her ways and be wise,</p>
+          <h2 className="text-2xl font-bold mt-4 mb-1">Proverbs 6:8</h2>
+          <p className="text-lg mb-1 px-4">Provides her supplies in the summer, And gathers her food in the harvest.</p>
+          <h2 className="text-2xl font-bold mt-4 mb-1">Proverbs 6:9</h2>
+          <p className="text-lg px-4">How long will you slumber, O sluggard? When will you rise from your sleep?</p>
         </div>
       </div>
     </div>

@@ -58,11 +58,11 @@ export default function LandingPage() {
                 </div>
               </div>
               <Image
-                src="https://picsum.photos/600/400"
+                src="/tytc-group-photo.jpg"
                 width="600"
                 height="400"
-                alt="Financial planning"
-                data-ai-hint="financial planning"
+                alt="TYTC Group Photo"
+                data-ai-hint="group photo tytc"
                 className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last lg:aspect-square shadow-lg"
               />
             </div>
