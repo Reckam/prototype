@@ -303,3 +303,31 @@ export const addAuditLog = async (logEntry: Omit<AuditLogEntry, 'id'>): Promise<
   await persistData();
   return newLog;
 };
+
+export const subscribeToSavings = (callback: (change: any) => void) => {
+  return supabase
+    .channel('savings-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'savings' }, callback)
+    .subscribe();
+};
+
+export const subscribeToProfits = (callback: (change: any) => void) => {
+  return supabase
+    .channel('profits-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'profits' }, callback)
+    .subscribe();
+};
+
+export const subscribeToLoans = (callback: (change: any) => void) => {
+  return supabase
+    .channel('loans-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'loans' }, callback)
+    .subscribe();
+};
+
+export const subscribeToAuditLogs = (callback: (change: any) => void) => {
+  return supabase
+    .channel('audit_logs-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_logs' }, callback)
+    .subscribe();
+};
