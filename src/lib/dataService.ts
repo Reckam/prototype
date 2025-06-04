@@ -1,6 +1,7 @@
 
 // Mock data service using localStorage for persistence
 import type { User, Admin, SavingTransaction, ProfitEntry, LoanRequest, AuditLogEntry, AppData, LoanStatus } from '@/types';
+import { supabase } from '@/supabaseClient'; // Added this import
 
 const APP_DATA_STORAGE_KEY = "savings_central_app_data";
 
@@ -331,3 +332,4 @@ export const subscribeToAuditLogs = (callback: (change: any) => void) => {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_logs' }, callback)
     .subscribe();
 };
+
