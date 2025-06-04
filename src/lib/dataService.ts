@@ -1,114 +1,74 @@
 
-// Mock data service using localStorage for persistence
-import type { User, Admin, SavingTransaction, ProfitEntry, LoanRequest, AuditLogEntry, AppData, LoanStatus } from '@/types';
-import { supabase } from '@/supabaseClient'; 
+// Data service using Supabase for persistence
+import type { User, Admin, SavingTransaction, ProfitEntry, LoanRequest, AuditLogEntry, LoanStatus } from '@/types';
+import { supabase } from '@/supabaseClient';
 
-const APP_DATA_STORAGE_KEY = "savings_central_app_data";
-
-let data: AppData;
-
-const loadData = (): AppData => {
-  if (typeof window !== 'undefined') {
-    const storedData = localStorage.getItem(APP_DATA_STORAGE_KEY);
-    if (storedData) {
-      try {
-        // Basic validation to ensure critical arrays exist
-        const parsedData = JSON.parse(storedData) as AppData;
-        return {
-          users: parsedData.users || [],
-          admins: parsedData.admins || [{ id: 'admin1', name: 'Super Admin', email: 'admin' }],
-          savings: parsedData.savings || [],
-          profits: parsedData.profits || [],
-          loans: parsedData.loans || [],
-          auditLogs: parsedData.auditLogs || [],
-        };
-      } catch (e) {
-        console.error("Error parsing app data from localStorage, resetting to default.", e);
-      }
-    }
-  }
-  // Default initial data if nothing in localStorage, if server-side rendering, or if parsing fails
-  return {
-    users: [],
-    admins: [
-      { id: 'admin1', name: 'Super Admin', email: 'admin' },
-    ],
-    savings: [],
-    profits: [],
-    loans: [],
-    auditLogs: [
-       { id: 'log_init_localstorage', adminId: 'admin1', adminName: 'Super Admin', action: 'System Initialized/Data Loaded', timestamp: new Date().toISOString(), details: { status: 'LocalStorage initialized or data loaded' } },
-    ],
-  };
+// --- Admin Operations (Kept simple, assuming admins are managed separately or are static for now) ---
+export const getAdmins = async (): Promise<Admin[]> => {
+  // In a real app, admins might also be fetched from Supabase or an auth provider.
+  // For now, returning the mock admin as per previous setup.
+  await Promise.resolve(); // To make it async like other functions
+  return [{ id: 'admin1', name: 'Super Admin', email: 'admin' }];
 };
 
-data = loadData(); // Initialize data
-
-const persistData = async (): Promise<void> => {
-  if (typeof window !== 'undefined') {
-    // Only persist data that is not primarily managed by Supabase directly in this service.
-    // For instance, if users are now fully managed via Supabase calls, data.users might not be relevant to persist to localStorage.
-    // This will need to be adjusted as more functions are migrated to Supabase.
-    const dataToPersist = { ...data };
-    // If users are fully fetched from Supabase by all relevant functions,
-    // you might exclude users from localStorage persistence:
-    // delete dataToPersist.users; 
-    localStorage.setItem(APP_DATA_STORAGE_KEY, JSON.stringify(dataToPersist));
-  }
-};
-
-
-// Simulate async operations for localStorage based functions
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-// User operations
-export const getUsers = async (): Promise<User[]> => { 
-  // Fetches users from Supabase
+// --- User Operations ---
+export const getUsers = async (): Promise<User[]> => {
   const { data: supabaseUsers, error } = await supabase
     .from('users')
     .select('*');
 
   if (error) {
     console.error('Error fetching users from Supabase:', error);
-    // Depending on requirements, you might throw the error or return an empty array
-    // or even try to fall back to localStorage data if appropriate for your app's logic.
-    // For now, returning an empty array on error.
-    return []; 
+    return [];
   }
-  // Ensure the returned data conforms to the User[] type.
-  // Supabase client often handles snake_case to camelCase conversion.
-  // If not, manual mapping would be needed here.
-  return supabaseUsers as User[] || []; 
+  return (supabaseUsers as User[]) || [];
 };
 
-export const getUserById = async (id: string): Promise<User | undefined> => { 
-  // TODO: Refactor to use Supabase: await supabase.from('users').select('*').eq('id', id).single();
-  await delay(50); 
-  return data.users.find(u => u.id === id); 
+export const getUserById = async (id: string): Promise<User | undefined> => {
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error(`Error fetching user by ID ${id} from Supabase:`, error);
+    return undefined;
+  }
+  return user as User || undefined;
 };
 
 // For admin creating a user
 export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profilePhotoUrl' | 'contact'>): Promise<User> => {
-  // TODO: Refactor to use Supabase: await supabase.from('users').insert({...});
-  await delay(100);
-  if (data.users.some(u => u.username === userStub.username)) {
-    throw new Error("User with this username already exists (localStorage check).");
+  const existingUserCheck = await supabase.from('users').select('id').eq('username', userStub.username).maybeSingle();
+  if (existingUserCheck.data) {
+    throw new Error("User with this username already exists (Supabase check).");
   }
-  const newUser: User = {
-    id: `user_admin_${Date.now()}`,
+
+  const newUserPayload: Omit<User, 'id' | 'createdAt'> = {
     name: userStub.name,
     username: userStub.username,
     contact: userStub.contact,
-    createdAt: new Date().toISOString(),
-    password: "1234", 
-    forcePasswordChange: true, 
+    password: "1234", // Default password
+    forcePasswordChange: true,
     profilePhotoUrl: userStub.profilePhotoUrl,
   };
-  data.users.push(newUser);
-  await persistData();
 
-  const admin = data.admins[0]; 
-   if (admin) {
+  const { data: createdUsers, error } = await supabase
+    .from('users')
+    .insert(newUserPayload)
+    .select()
+    .single();
+
+  if (error || !createdUsers) {
+    console.error('Error adding user to Supabase:', error);
+    throw new Error("Failed to create user account in Supabase.");
+  }
+  const newUser = createdUsers as User;
+
+  const admins = await getAdmins();
+  if (admins.length > 0) {
+    const admin = admins[0];
     await addAuditLog({
       adminId: admin.id,
       adminName: admin.name,
@@ -122,23 +82,27 @@ export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profil
 
 // For user self-registration
 export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'createdAt'>): Promise<User> => {
-  // TODO: Refactor to use Supabase: await supabase.from('users').insert({...});
-  await delay(100);
-  if (data.users.some(u => u.username === userData.username)) {
-    throw new Error("User with this username already exists (localStorage check).");
+  const existingUserCheck = await supabase.from('users').select('id').eq('username', userData.username).maybeSingle();
+  if (existingUserCheck.data) {
+    throw new Error("User with this username already exists (Supabase check).");
   }
-  const newUser: User = {
-    id: `user_self_${Date.now()}`,
-    name: userData.name,
-    username: userData.username,
-    contact: userData.contact,
-    password: userData.password, 
-    profilePhotoUrl: userData.profilePhotoUrl,
-    forcePasswordChange: false, 
-    createdAt: new Date().toISOString(),
+  
+  const newUserPayload = {
+    ...userData,
+    forcePasswordChange: userData.forcePasswordChange !== undefined ? userData.forcePasswordChange : false,
   };
-  data.users.push(newUser);
-  await persistData();
+
+  const { data: createdUsers, error } = await supabase
+    .from('users')
+    .insert(newUserPayload)
+    .select()
+    .single();
+  
+  if (error || !createdUsers) {
+    console.error('Error creating user from registration in Supabase:', error);
+    throw new Error("Failed to create user account in Supabase.");
+  }
+  const newUser = createdUsers as User;
 
   const admins = await getAdmins();
   if (admins.length > 0) {
@@ -154,203 +118,329 @@ export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'cr
   return newUser;
 };
 
-
 export const updateUser = async (id: string, updates: Partial<User>): Promise<User | undefined> => {
-  // TODO: Refactor to use Supabase: await supabase.from('users').update({...}).eq('id', id);
-  await delay(100);
-  const userIndex = data.users.findIndex(u => u.id === id);
-  if (userIndex === -1) return undefined;
-
-  if (updates.username && data.users.some(u => u.username === updates.username && u.id !== id)) {
-    throw new Error("Username already taken (localStorage check).");
+  if (updates.username && updates.username !== (await getUserById(id))?.username) {
+    const existingUserCheck = await supabase.from('users').select('id').eq('username', updates.username).neq('id', id).maybeSingle();
+    if (existingUserCheck.data) {
+        throw new Error("Username already taken (Supabase check).");
+    }
   }
 
-  data.users[userIndex] = { ...data.users[userIndex], ...updates };
-  await persistData();
-  return data.users[userIndex];
+  const { data: updatedUsers, error } = await supabase
+    .from('users')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error || !updatedUsers) {
+    console.error(`Error updating user ${id} in Supabase:`, error);
+    // Optionally, re-throw the error or return undefined based on how the UI should handle this
+    // throw new Error(error?.message || "Failed to update user.");
+    return undefined;
+  }
+  return updatedUsers as User;
 };
 
 export const deleteUser = async (id: string): Promise<boolean> => {
-  // TODO: Refactor to use Supabase: await supabase.from('users').delete().eq('id', id);
-  // Also ensure related data (savings, profits, loans for this user) is handled or deleted according to your app's logic.
-  await delay(100);
-  const initialLength = data.users.length;
-  data.users = data.users.filter(u => u.id !== id);
-  // These should also be handled via Supabase if user deletion cascades or requires separate deletes
-  data.savings = data.savings.filter(s => s.userId !== id);
-  data.profits = data.profits.filter(p => p.userId !== id);
-  data.loans = data.loans.filter(l => l.userId !== id);
-  
-  const deleted = data.users.length < initialLength;
-  if (deleted) {
-    await persistData();
+  // Consider related data (savings, profits, loans). 
+  // If Supabase has CASCADE constraints, this might be enough. Otherwise, delete related data first.
+  // For simplicity, this example only deletes the user. In a real app, handle related data.
+  const { error } = await supabase
+    .from('users')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error(`Error deleting user ${id} from Supabase:`, error);
+    return false;
   }
-  return deleted;
+  // Note: Audit logging for deletion should be handled carefully.
+  // The `addAuditLog` below assumes an admin is performing this action,
+  // and their details are available.
+  return true;
 };
 
 export const checkUsernameAvailability = async (username: string): Promise<boolean> => {
-  // TODO: Refactor to use Supabase: const { data, error } = await supabase.from('users').select('id').eq('username', username); return !data || data.length === 0;
-  await delay(50);
-  return !data.users.some(u => u.username === username);
+  const { data, error } = await supabase
+    .from('users')
+    .select('id')
+    .eq('username', username)
+    .maybeSingle(); // Use maybeSingle to get one or null, not an array
+
+  if (error) {
+    console.error('Error checking username availability:', error);
+    return false; // Fail safe, assume not available on error
+  }
+  return !data; // True if data is null (username not found), false otherwise
 };
 
-
-// Admin operations
-export const getAdmins = async (): Promise<Admin[]> => { 
-  // TODO: Consider if admins should also be in Supabase or if they are static/managed differently.
-  // For now, keeps using local mock data.
-  await delay(50); 
-  return [...data.admins]; 
-};
-
-
-// Savings operations
+// --- Savings Operations ---
 export const getSavingsByUserId = async (userId: string): Promise<SavingTransaction[]> => {
-  // TODO: Refactor to use Supabase
-  await delay(50);
-  return data.savings.filter(s => s.userId === userId).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-};
-export const addSavingTransaction = async (transaction: Omit<SavingTransaction, 'id'>): Promise<SavingTransaction> => {
-  // TODO: Refactor to use Supabase
-  await delay(100);
-  const newTransaction = { ...transaction, id: `s${Date.now()}` };
-  data.savings.push(newTransaction);
-  await persistData();
+  const { data: savings, error } = await supabase
+    .from('savings')
+    .select('*')
+    .eq('user_id', userId) // Assuming 'user_id' is the foreign key column in 'savings' table
+    .order('date', { ascending: false });
 
-  const admin = data.admins[0];
-  const user = data.users.find(u => u.id === transaction.userId); // This will check localStorage users
-  if (admin && user) {
+  if (error) {
+    console.error(`Error fetching savings for user ${userId}:`, error);
+    return [];
+  }
+  return (savings as SavingTransaction[]) || [];
+};
+
+export const addSavingTransaction = async (transaction: Omit<SavingTransaction, 'id'>): Promise<SavingTransaction> => {
+  // Map userId to user_id if your Supabase table uses snake_case
+  const payload = { ...transaction, user_id: transaction.userId };
+  delete (payload as any).userId; 
+
+  const { data: newTransactions, error } = await supabase
+    .from('savings')
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error || !newTransactions) {
+    console.error('Error adding saving transaction:', error);
+    throw new Error("Failed to add saving transaction.");
+  }
+  const newTransaction = newTransactions as SavingTransaction;
+
+  // Audit Log
+  const admins = await getAdmins();
+  const user = await getUserById(transaction.userId);
+  if (admins.length > 0 && user) {
+    const admin = admins[0]; // Assuming first admin for system-like logging if not admin-initiated
     await addAuditLog({
-        adminId: admin.id,
-        adminName: admin.name,
-        action: `Added ${transaction.type} of ${transaction.amount} for user ${user.name}`,
-        timestamp: new Date().toISOString(),
-        details: { transactionId: newTransaction.id, userId: transaction.userId, amount: transaction.amount, type: transaction.type, date: transaction.date }
+      adminId: admin.id,
+      adminName: admin.name,
+      action: `Added ${transaction.type} of ${transaction.amount} for user ${user.name}`,
+      timestamp: new Date().toISOString(),
+      details: { transactionId: newTransaction.id, userId: transaction.userId, amount: transaction.amount, type: transaction.type, date: transaction.date }
     });
   }
   return newTransaction;
 };
-export const updateUserSavings = async (userId: string, amount: number, date: string, adminId: string, adminName: string): Promise<SavingTransaction | undefined> => {
-  // TODO: Refactor to use Supabase. This logic will be more complex with DB.
-  await delay(100);
 
-  const userSavings = data.savings.filter(s => s.userId === userId);
+export const updateUserSavings = async (userId: string, newTotalSavingsAmount: number, date: string, adminId: string, adminName: string): Promise<SavingTransaction | undefined> => {
+  const userSavings = await getSavingsByUserId(userId);
   const currentTotalSavings = userSavings.reduce((acc, s) => acc + (s.type === 'deposit' ? s.amount : -s.amount), 0);
+  const adjustmentAmount = newTotalSavingsAmount - currentTotalSavings;
 
-  const adjustmentAmount = amount - currentTotalSavings;
+  if (Math.abs(adjustmentAmount) < 0.01) { // Check for negligible change
+    await addAuditLog({
+      adminId: adminId,
+      adminName: adminName,
+      action: `Attempted savings adjustment for user ID ${userId}, but no change in amount.`,
+      timestamp: new Date().toISOString(),
+      details: { userId: userId, newTotalSavings: newTotalSavingsAmount, currentTotalSavings: currentTotalSavings, date: date }
+    });
+    return undefined; // No transaction needed
+  }
+
   const transactionType = adjustmentAmount >= 0 ? 'deposit' : 'withdrawal';
   const absAdjustmentAmount = Math.abs(adjustmentAmount);
 
-  const user = await getUserById(userId); 
-
-  if (absAdjustmentAmount === 0) {
-     await addAuditLog({
-      adminId: adminId,
-      adminName: adminName,
-      action: `Attempted savings adjustment for user ${user?.name || `ID ${userId}`}, but no change in amount.`,
-      timestamp: new Date().toISOString(),
-      details: { userId: userId, userName: user?.name, newTotalSavings: amount, currentTotalSavings: currentTotalSavings, date: date }
-    });
-    return undefined;
-  }
-
-  const newTransaction: SavingTransaction = {
-    id: `s_adj_${Date.now()}`,
-    userId,
+  const transactionPayload: Omit<SavingTransaction, 'id'> = {
+    userId: userId,
     amount: absAdjustmentAmount,
-    date,
+    date: date,
     type: transactionType,
   };
-  data.savings.push(newTransaction);
-  await persistData();
+  
+  const newTransaction = await addSavingTransaction(transactionPayload); // addSavingTransaction already handles its own audit for generic additions
 
+  // Specific audit log for this adjustment action by an admin
+  const user = await getUserById(userId);
   await addAuditLog({
-      adminId: adminId,
-      adminName: adminName,
-      action: `Adjusted savings for user ${user?.name} (ID: ${userId}). New total: ${amount}. Adjustment: ${transactionType} of ${absAdjustmentAmount}`,
-      timestamp: new Date().toISOString(),
-      details: { transactionId: newTransaction.id, userId: userId, userName: user?.name, newTotalSavings: amount, adjustmentAmount: absAdjustmentAmount, adjustmentType: transactionType, date: date }
+    adminId: adminId,
+    adminName: adminName,
+    action: `Adjusted savings for user ${user?.name || `ID ${userId}`}. New total: ${newTotalSavingsAmount}. Adjustment: ${transactionType} of ${absAdjustmentAmount}`,
+    timestamp: new Date().toISOString(),
+    details: { transactionId: newTransaction.id, userId: userId, userName: user?.name, newTotalSavings: newTotalSavingsAmount, adjustmentAmount: absAdjustmentAmount, adjustmentType: transactionType, date: date }
   });
 
   return newTransaction;
 };
 
-
-// Profits operations
+// --- Profits Operations ---
 export const getProfitsByUserId = async (userId: string): Promise<ProfitEntry[]> => {
-  // TODO: Refactor to use Supabase
-  await delay(50);
-  return data.profits.filter(p => p.userId === userId).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const { data: profits, error } = await supabase
+    .from('profits')
+    .select('*')
+    .eq('user_id', userId) // Assuming 'user_id'
+    .order('date', { ascending: false });
+
+  if (error) {
+    console.error(`Error fetching profits for user ${userId}:`, error);
+    return [];
+  }
+  return (profits as ProfitEntry[]) || [];
 };
 
-// Loan operations
+export const addProfitEntry = async (profitEntry: Omit<ProfitEntry, 'id'>): Promise<ProfitEntry> => {
+  const payload = { ...profitEntry, user_id: profitEntry.userId };
+  delete (payload as any).userId;
+
+  const { data: newEntries, error } = await supabase
+    .from('profits')
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error || !newEntries) {
+    console.error('Error adding profit entry:', error);
+    throw new Error("Failed to add profit entry.");
+  }
+  // Consider if audit logging is needed for profit entries
+  return newEntries as ProfitEntry;
+};
+
+// --- Loan Operations ---
 export const getLoansByUserId = async (userId: string): Promise<LoanRequest[]> => {
-  // TODO: Refactor to use Supabase
-  await delay(50);
-  return data.loans.filter(l => l.userId === userId).sort((a,b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime());
+  const { data: loans, error } = await supabase
+    .from('loans')
+    .select('*')
+    .eq('user_id', userId) // Assuming 'user_id'
+    .order('requested_at', { ascending: false }); // Assuming 'requested_at'
+
+  if (error) {
+    console.error(`Error fetching loans for user ${userId}:`, error);
+    return [];
+  }
+  return (loans as LoanRequest[]) || [];
 };
+
 export const getAllLoans = async (): Promise<LoanRequest[]> => {
-  // TODO: Refactor to use Supabase
-  await delay(50);
-  return [...data.loans].sort((a,b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime());
+  const { data: loans, error } = await supabase
+    .from('loans')
+    .select(`
+      *,
+      users ( name ) 
+    `) // Example of joining to get user's name. Adjust 'users' table name and column if needed.
+    .order('requested_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching all loans:', error);
+    return [];
+  }
+  // Map to include userName if users table was joined
+  return (loans?.map(loan => ({
+    ...loan,
+    userName: (loan as any).users?.name || `User ID: ${loan.user_id}`
+  })) as LoanRequest[]) || [];
 };
-export const addLoanRequest = async (request: Omit<LoanRequest, 'id' | 'status' | 'requestedAt' | 'userName'>): Promise<LoanRequest> => {
-  // TODO: Refactor to use Supabase
-  await delay(100);
-  const user = await getUserById(request.userId); // This will check localStorage users
-  const newRequest: LoanRequest = {
+
+export const addLoanRequest = async (request: Omit<LoanRequest, 'id' | 'status' | 'requestedAt' | 'userName' | 'reviewedAt'>): Promise<LoanRequest> => {
+  const user = await getUserById(request.userId);
+  const payload = {
     ...request,
-    id: `l${Date.now()}`,
-    userName: user?.name,
-    status: 'pending',
-    requestedAt: new Date().toISOString(),
+    user_id: request.userId,
+    status: 'pending' as LoanStatus,
+    requested_at: new Date().toISOString(),
+    // userName is not directly stored in the loans table usually, fetched via join or from user record
   };
-  data.loans.push(newRequest);
-  await persistData();
+  delete (payload as any).userId;
+
+
+  const { data: newRequests, error } = await supabase
+    .from('loans')
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error || !newRequests) {
+    console.error('Error adding loan request:', error);
+    throw new Error("Failed to add loan request.");
+  }
+  const newRequest = newRequests as LoanRequest;
+  // Add userName for immediate return if needed, though it's better practice to fetch this dynamically
+  newRequest.userName = user?.name; 
+
   return newRequest;
 };
+
 export const updateLoanStatus = async (loanId: string, status: LoanStatus, adminId: string): Promise<LoanRequest | undefined> => {
-  // TODO: Refactor to use Supabase
-  await delay(100);
-  const loanIndex = data.loans.findIndex(l => l.id === loanId);
-  if (loanIndex === -1) return undefined;
+  const payload = {
+    status: status,
+    reviewed_at: new Date().toISOString(),
+  };
 
-  data.loans[loanIndex].status = status;
-  data.loans[loanIndex].reviewedAt = new Date().toISOString();
-  await persistData();
+  const { data: updatedLoans, error } = await supabase
+    .from('loans')
+    .update(payload)
+    .eq('id', loanId)
+    .select(`
+        *,
+        users ( name )
+    `)
+    .single();
 
-  const admin = data.admins.find(a => a.id === adminId);
-  const loan = data.loans[loanIndex];
-  if (admin && loan) {
-      await addAuditLog({
-          adminId: admin.id,
-          adminName: admin.name,
-          action: `${status === 'approved' ? 'Approved' : 'Rejected'} loan #${loan.id} for ${loan.userName || `user ID ${loan.userId}`}`,
-          timestamp: new Date().toISOString(),
-          details: { loanId: loan.id, newStatus: status, userId: loan.userId }
-      });
+  if (error || !updatedLoans) {
+    console.error(`Error updating loan status for ${loanId}:`, error);
+    return undefined;
   }
-  return data.loans[loanIndex];
+  
+  const updatedLoan = {
+      ...updatedLoans,
+      userName: (updatedLoans as any).users?.name || `User ID: ${updatedLoans.user_id}`
+  } as LoanRequest;
+
+
+  const admins = await getAdmins();
+  const admin = admins.find(a => a.id === adminId) || admins[0]; // Fallback to first admin
+  
+  if (admin && updatedLoan) {
+    await addAuditLog({
+      adminId: admin.id,
+      adminName: admin.name,
+      action: `${status === 'approved' ? 'Approved' : status === 'rejected' ? 'Rejected' : 'Updated'} loan #${updatedLoan.id} for ${updatedLoan.userName || `user ID ${updatedLoan.userId}`}`,
+      timestamp: new Date().toISOString(),
+      details: { loanId: updatedLoan.id, newStatus: status, userId: updatedLoan.userId }
+    });
+  }
+  return updatedLoan;
 };
 
-// Audit Log operations
+// --- Audit Log Operations ---
 export const getAuditLogs = async (): Promise<AuditLogEntry[]> => {
-  // TODO: Refactor to use Supabase
-  await delay(50);
-  return [...data.auditLogs].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-};
-export const addAuditLog = async (logEntry: Omit<AuditLogEntry, 'id'>): Promise<AuditLogEntry> => {
-  // TODO: Refactor to use Supabase
-  // This function should ideally write to Supabase first, then if successful, update local state if you're maintaining a cache.
-  // For now, it continues to use localStorage.
-  await delay(50); 
-  const newLog: AuditLogEntry = { ...logEntry, id: `log${Date.now()}` };
-  data.auditLogs.push(newLog);
-  await persistData(); // Persist after adding the log.
-  return newLog;
+  const { data: logs, error } = await supabase
+    .from('audit_logs') // Assuming table name 'audit_logs'
+    .select('*')
+    .order('timestamp', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching audit logs:', error);
+    return [];
+  }
+  return (logs as AuditLogEntry[]) || [];
 };
 
-// Real-time subscription functions
+export const addAuditLog = async (logEntry: Omit<AuditLogEntry, 'id'>): Promise<AuditLogEntry> => {
+  const payload = {
+      ...logEntry,
+      admin_id: logEntry.adminId, // map to snake_case if needed
+      admin_name: logEntry.adminName,
+  };
+  delete (payload as any).adminId;
+  // delete (payload as any).adminName; // admin_name might not be stored directly if fetched via admin_id
+
+  const { data: newLogs, error } = await supabase
+    .from('audit_logs')
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error || !newLogs) {
+    console.error('Error adding audit log:', error);
+    throw new Error("Failed to add audit log.");
+  }
+  return newLogs as AuditLogEntry;
+};
+
+
+// --- Real-time Subscription Functions (Remain the same as they already use Supabase client) ---
 export const subscribeToSavings = (callback: (change: any) => void) => {
   return supabase
     .channel('savings-changes')
@@ -378,3 +468,4 @@ export const subscribeToAuditLogs = (callback: (change: any) => void) => {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_logs' }, callback)
     .subscribe();
 };
+    
