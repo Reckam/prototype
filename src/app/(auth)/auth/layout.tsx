@@ -12,8 +12,8 @@ export default function AuthLayout({
         <Logo className="mb-8 text-3xl" />
         {children}
       </div>
-      <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-primary p-12 relative overflow-hidden">
-        {/* Image removed */}
+      {/* Updated classes to make scripture visible on smaller screens and stack appropriately */}
+      <div className="flex w-full lg:w-1/2 items-center justify-center bg-primary p-8 md:p-12 relative overflow-hidden mt-8 lg:mt-0">
         <div className="relative z-10 text-center text-primary-foreground">
           <h1 className="text-3xl font-bold mb-2">Proverbs 6:6</h1>
           <p className="text-lg mb-1 px-4">Go to the ant, you sluggard! Consider her ways and be wise,</p>
