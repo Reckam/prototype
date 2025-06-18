@@ -1,3 +1,4 @@
+
 "use client";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -122,10 +123,15 @@ export default function ManageUsersPage() {
         await addAuditLog({
             adminId: admin.id,
             adminName: admin.name,
-            action: `Deleted user: ${userName} (ID: ${userId})`,\n timestamp: new Date().toISOString(),\n details: { userId, userName }\n        });
+            action: `Deleted user: ${userName} (ID: ${userId})`,
+            timestamp: new Date().toISOString(),
+            details: { userId, userName }
+        });
         toast({ title: "User Deletion Initiated", description: `Attempting to delete user ${userName}. The list will update shortly.` });
         // No need to call fetchUsers() here, the real-time update will handle it
-      } catch (error) {\n console.error("Failed to delete user:", error);\n toast({ variant: "destructive", title: "Deletion Failed", description: "Could not delete the user." });
+      } catch (error) {
+        console.error("Failed to delete user:", error);
+        toast({ variant: "destructive", title: "Deletion Failed", description: "Could not delete the user." });
       }
     }
   };
@@ -211,7 +217,8 @@ export default function ManageUsersPage() {
           <CardDescription>View, edit, and manage all users in the system.</CardDescription>
         </CardHeader>
         <CardContent>
-          {filteredUsers.length > 0 ? (\n            <Table>
+          {filteredUsers.length > 0 ? (
+            <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
@@ -234,18 +241,67 @@ export default function ManageUsersPage() {
                     <TableCell className="text-right">{formatCurrency(user.totalSavings)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(user.totalProfits)}</TableCell>
                     <TableCell className="text-center">{user.activeLoans}</TableCell>
-                    <TableCell className="text-right space-x-1">\n                       <Dialog>\n                        <DialogTrigger asChild>\n                           <Button variant=\"outline\" size=\"sm\" onClick={() => handleEditSavings(user)}> {/* Changed to size sm */}\n                            <Edit className=\"mr-1 h-3 w-3\" /> Edit Savings\n                          </Button>\n                        </DialogTrigger>\n                        {selectedUserForEdit && selectedUserForEdit.id === user.id && (\n                          <DialogContent>\n                            <DialogHeader>\n                              <DialogTitle>Edit Savings for {selectedUserForEdit.name}</DialogTitle>\n                              <DialogDescription>\n                                Enter the new total savings amount. This will create an adjustment transaction.\n                              </DialogDescription>\n                            </DialogHeader>\n                            <div className=\"grid gap-4 py-4\">\n                              <div className=\"grid grid-cols-4 items-center gap-4\">\n                                <Label htmlFor=\"savings-amount\" className=\"text-right col-span-1\">\n                                  Savings\n                                </Label>\n                                <Input\n                                  id=\"savings-amount\"\n                                  type=\"number\"\n                                  value={newSavingsAmount}\n                                  onChange={(e) => setNewSavingsAmount(e.target.value)}\n                                  className=\"col-span-3\"\n                                />
+                    <TableCell className="text-right space-x-1">
+                       <Dialog>
+                        <DialogTrigger asChild>
+                           <Button variant="outline" size="sm" onClick={() => handleEditSavings(user)}> {/* Changed to size sm */}
+                            <Edit className="mr-1 h-3 w-3" /> Edit Savings
+                          </Button>
+                        </DialogTrigger>
+                        {selectedUserForEdit && selectedUserForEdit.id === user.id && (
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Edit Savings for {selectedUserForEdit.name}</DialogTitle>
+                              <DialogDescription>
+                                Enter the new total savings amount. This will create an adjustment transaction.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                              <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="savings-amount" className="text-right col-span-1">
+                                  Savings
+                                </Label>
+                                <Input
+                                  id="savings-amount"
+                                  type="number"
+                                  value={newSavingsAmount}
+                                  onChange={(e) => setNewSavingsAmount(e.target.value)}
+                                  className="col-span-3"
+                                />
                               </div>
                             </div>
-                            <DialogFooter>\n                               <DialogClose asChild>\n                                <Button variant=\"outline\">Cancel</Button>\n                              </DialogClose>\n                              <Button onClick={handleSaveSavingsUpdate}>Save Changes</Button>\n                            </DialogFooter>\n                          </DialogContent>\n                        )}\n                      </Dialog>
-                      <Button variant=\"ghost\" size=\"icon\" onClick={() => handleDeleteUser(user.id, user.name)} className=\"text-destructive hover:text-destructive\">\n                        <Trash2 className=\"h-4 w-4\" />
-                        <span className=\"sr-only\">Delete User</span>\n                      </Button>
+                            <DialogFooter>
+                               <DialogClose asChild>
+                                <Button variant="outline">Cancel</Button>
+                              </DialogClose>
+                              <Button onClick={handleSaveSavingsUpdate}>Save Changes</Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        )}
+                      </Dialog>
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.id, user.name)} className="text-destructive hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete User</span>
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>\n          ) : (\n             <div className=\"text-center py-8\">\n              <Users className=\"mx-auto h-12 w-12 text-muted-foreground mb-4\" />\n              <p className=\"text-muted-foreground\">\n                {searchTerm ? "No users match your search criteria." : "No users found in the system."}\n              </p>\n               <Button asChild className=\"mt-4\">\n                <Link href=\"/dashboard/admin/users/add\">Add First User</Link>\n              </Button>\n            </div>\n          )}
+            </Table>
+          ) : (
+             <div className="text-center py-8">
+              <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">
+                {searchTerm ? "No users match your search criteria." : "No users found in the system."}
+              </p>
+               <Button asChild className="mt-4">
+                <Link href="/dashboard/admin/users/add">Add First User</Link>
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
-    </DashboardLayout>\n  );
+    </DashboardLayout>
+  );
 }
+
