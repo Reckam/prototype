@@ -1,7 +1,8 @@
+
 "use client";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; // Added CardDescription
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 // Import necessary functions from dataService and authService
@@ -140,7 +141,8 @@ export default function UserSavingsPage() {
           <CardDescription>View all your savings deposits and withdrawals.</CardDescription>
         </CardHeader>
         <CardContent>
-          {savings.length > 0 ? (\n            <Table>
+          {savings.length > 0 ? (
+            <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
@@ -157,11 +159,15 @@ export default function UserSavingsPage() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>\n          ) : (\n             <div className="text-center py-8">
+            </Table>
+          ) : (
+             <div className="text-center py-8">
+                <DollarSign className="mx-auto h-12 w-12 text-muted-foreground mb-4" /> {/* Added icon for empty state */}
                 <p className="text-muted-foreground">No savings transactions found.</p>
             </div>
           )}
         </CardContent>
       </Card>
-    </DashboardLayout>\n  );
+    </DashboardLayout>
+  );
 }

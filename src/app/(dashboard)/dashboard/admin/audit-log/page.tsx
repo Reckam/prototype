@@ -1,3 +1,4 @@
+
 "use client";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -109,7 +110,8 @@ export default function AuditLogPage() {
           <CardDescription>Tracks important actions performed by administrators in the system.</CardDescription>
         </CardHeader>
         <CardContent>
-          {filteredLogs.length > 0 ? (\n            <Table>
+          {filteredLogs.length > 0 ? (
+            <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Timestamp</TableHead>
@@ -130,11 +132,17 @@ export default function AuditLogPage() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>\n          ) : (\n            <div className=\"text-center py-8\">\n              <FileClock className=\"mx-auto h-12 w-12 text-muted-foreground mb-4\" />
-              <p className=\"text-muted-foreground\">\n                {searchTerm ? "No logs match your search criteria." : "No audit log entries found."}\n              </p>
+            </Table>
+          ) : (
+            <div className="text-center py-8">
+              <FileClock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">
+                {searchTerm ? "No logs match your search criteria." : "No audit log entries found."}
+              </p>
             </div>
           )}
         </CardContent>
       </Card>
-    </DashboardLayout>\n  );
+    </DashboardLayout>
+  );
 }

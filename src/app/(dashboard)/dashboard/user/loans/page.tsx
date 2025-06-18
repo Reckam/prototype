@@ -1,3 +1,4 @@
+
 "use client";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -109,8 +110,12 @@ export default function UserLoansPage() {
   };
 
   if (isLoading) {
-     return (\n      <DashboardLayout role=\"user\">\n        <div className=\"flex items-center justify-center h-full\">\n          <div className=\"animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary\"></div>
-        </div>\n      </DashboardLayout>
+     return (
+      <DashboardLayout role="user">
+        <div className="flex items-center justify-center h-full">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </div>
+      </DashboardLayout>
     );
   }
 
@@ -143,7 +148,8 @@ export default function UserLoansPage() {
           <CardDescription>Track the status of all your loan applications.</CardDescription>
         </CardHeader>
         <CardContent>
-          {loans.length > 0 ? (\n            <Table>
+          {loans.length > 0 ? (
+            <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Requested On</TableHead>
@@ -151,29 +157,44 @@ export default function UserLoansPage() {
                   <TableHead>Reason</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Reviewed On</TableHead>
-                  {/* <TableHead className=\"text-right\">Actions</TableHead> */}\n                </TableRow>
+                  {/* <TableHead className="text-right">Actions</TableHead> */}
+                </TableRow>
               </TableHeader>
               <TableBody>
                 {loans.map((loan) => (
                   <TableRow key={loan.id}>
                     <TableCell>{format(new Date(loan.requestedAt), "PPp")}</TableCell>
-                    <TableCell className=\"font-medium\">{formatCurrency(loan.amount)}</TableCell>
+                    <TableCell className="font-medium">{formatCurrency(loan.amount)}</TableCell>
                     <TableCell>{loan.reason}</TableCell>
-                    <TableCell>\n                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(loan.status)}`}>
+                    <TableCell>
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(loan.status)}`}>
                         {loan.status.charAt(0).toUpperCase() + loan.status.slice(1)}
                       </span>
                     </TableCell>
                     <TableCell>{loan.reviewedAt ? format(new Date(loan.reviewedAt), "PPp") : "N/A"}</TableCell>
-                    {/* <TableCell className=\"text-right\">\n                      <Button variant=\"ghost\" size=\"icon\" asChild>\n                        <Link href={`/dashboard/user/loans/${loan.id}`}>\n                          <Eye className=\"h-4 w-4\" />\n                          <span className=\"sr-only\">View Details</span>\n                        </Link>\n                      </Button>\n                    </TableCell> */}\n                  </TableRow>
+                    {/* <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" asChild>
+                        <Link href={`/dashboard/user/loans/${loan.id}`}>
+                          <Eye className="h-4 w-4" />
+                          <span className="sr-only">View Details</span>
+                        </Link>
+                      </Button>
+                    </TableCell> */}
+                  </TableRow>
                 ))}
               </TableBody>
-            </Table>\n          ) : (\n            <div className=\"text-center py-8\">\n              <Landmark className=\"mx-auto h-12 w-12 text-muted-foreground mb-4\" />
-              <p className=\"text-muted-foreground\">You haven&apos;t made any loan requests yet.</p>
-              <Button asChild className=\"mt-4\">\n                <Link href=\"/dashboard/user/loans/request\">Request a Loan</Link>
+            </Table>
+          ) : (
+            <div className="text-center py-8">
+              <Landmark className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">You haven&apos;t made any loan requests yet.</p>
+              <Button asChild className="mt-4">
+                <Link href="/dashboard/user/loans/request">Request a Loan</Link>
               </Button>
             </div>
           )}
         </CardContent>
       </Card>
-    </DashboardLayout>\n  );
+    </DashboardLayout>
+  );
 }
