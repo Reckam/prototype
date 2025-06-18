@@ -1,5 +1,5 @@
 import { APP_NAME } from '@/lib/constants';
-import { Shapes } from 'lucide-react'; // Changed from PiggyBank to Shapes
+import { PiggyBank } from 'lucide-react'; // Changed back to PiggyBank
 import Link from 'next/link';
 
 interface LogoProps {
@@ -10,7 +10,7 @@ interface LogoProps {
 export function Logo({ href = "/", className }: LogoProps) {
   return (
     <Link href={href} className={`flex items-center gap-2 text-xl font-semibold text-primary ${className}`}>
-      <Shapes className="h-7 w-7" /> {/* Changed from PiggyBank to Shapes */}
+      <PiggyBank className="h-7 w-7" /> {/* Changed back to PiggyBank */}
       <span>{APP_NAME}</span>
     </Link>
   );

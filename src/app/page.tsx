@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shapes, LogIn, UserPlus, ShieldCheck } from "lucide-react"; // Changed from PiggyBank to Shapes
+import { PiggyBank, LogIn, UserPlus, ShieldCheck } from "lucide-react"; // Changed back to PiggyBank
 import Link from "next/link";
 import { APP_NAME } from "@/lib/constants";
 
@@ -11,7 +11,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pt-4">
         <div className="container flex h-14 items-center">
           <Link href="/" className="flex items-center space-x-2">
-            <Shapes className="h-6 w-6 text-primary" /> {/* Changed from PiggyBank to Shapes */}
+            <PiggyBank className="h-6 w-6 text-primary" /> {/* Changed back to PiggyBank */}
             <span className="font-bold text-lg leading-none">{APP_NAME}</span>
           </Link>
           <nav className="ml-auto flex items-center space-x-2">
@@ -57,7 +57,7 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="flex items-center justify-center bg-muted rounded-xl p-8 lg:p-12 shadow-lg">
-                <Shapes className="h-32 w-32 text-primary" /> {/* Changed from PiggyBank to Shapes */}
+                <PiggyBank className="h-32 w-32 text-primary" /> {/* Changed back to PiggyBank */}
               </div>
             </div>
           </div>
@@ -77,7 +77,7 @@ export default function LandingPage() {
             <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:grid-cols-2 mt-12"> 
               <Card>
                 <CardHeader>
-                  <Shapes className="h-8 w-8 text-primary mb-2" /> {/* Changed from PiggyBank to Shapes */}
+                  <PiggyBank className="h-8 w-8 text-primary mb-2" /> {/* Changed back to PiggyBank */}
                   <CardTitle>Savings Management</CardTitle>
                 </CardHeader>
                 <CardContent>
