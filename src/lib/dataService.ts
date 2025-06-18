@@ -1,7 +1,7 @@
 
 // Data service using Supabase for persistence
 import type { User, Admin, SavingTransaction, ProfitEntry, LoanRequest, AuditLogEntry, LoanStatus } from '@/types';
-import { supabase } from '@/supabaseClient'; // Corrected from ../lib/supabaseClient
+import { supabase } from '@/supabaseClient'; 
 
 console.log("dataService.ts: Supabase client initialized:", supabase !== null);
 
@@ -79,9 +79,8 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
 export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profilePhotoUrl' | 'contact'>): Promise<User> => {
   console.log("dataService: addUser (admin action) called with userStub:", userStub);
   
-  // 1. Check if username already exists
   const { data: existingUser, error: checkError } = await supabase.from('users').select('id').eq('username', userStub.username).maybeSingle();
-  if (checkError && checkError.code !== 'PGRST116') { // PGRST116 means no rows found, which is good here.
+  if (checkError && checkError.code !== 'PGRST116') {
     console.error('dataService: Error checking for existing username during addUser:', checkError);
     throw new Error(`Failed to check username: ${checkError.message}`);
   }
@@ -90,19 +89,17 @@ export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profil
     throw new Error("User with this username already exists.");
   }
 
-  // 2. Prepare payload for Supabase (snake_case)
   const newUserPayload = {
     name: userStub.name,
     username: userStub.username,
     contact: userStub.contact,
-    password: "1234", // Default password, should be hashed in a real app
+    password: "1234", 
     force_password_change: true,
-    profile_photo_url: userStub.profilePhotoUrl, // Can be null/undefined
+    profile_photo_url: userStub.profilePhotoUrl, 
     created_at: new Date().toISOString(),
   };
   console.log("dataService: addUser - inserting payload:", newUserPayload);
 
-  // 3. Insert into Supabase
   const { data: createdSupabaseUser, error: insertError } = await supabase
     .from('users')
     .insert(newUserPayload)
@@ -120,10 +117,9 @@ export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profil
   
   console.log("dataService: addUser - Supabase insert successful, raw data:", createdSupabaseUser);
 
-  // 4. Add Audit Log
-  const admins = await getAdmins(); // Assuming this is light and doesn't fail often
+  const admins = await getAdmins(); 
   if (admins.length > 0) {
-    const admin = admins[0]; // Or a more sophisticated way to get current admin if available
+    const admin = admins[0]; 
     try {
       await addAuditLog({
         adminId: admin.id,
@@ -134,17 +130,15 @@ export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profil
       });
     } catch (auditError: any) {
         console.error("dataService: Failed to add audit log for user creation:", auditError.message);
-        // Do not let audit log failure prevent user creation success
     }
   }
 
-  // 5. Map to application User type (camelCase) and return
   const appUser: User = {
     id: createdSupabaseUser.id,
     name: createdSupabaseUser.name,
     username: createdSupabaseUser.username,
     contact: createdSupabaseUser.contact,
-    password: createdSupabaseUser.password, // Be cautious
+    password: createdSupabaseUser.password, 
     profilePhotoUrl: createdSupabaseUser.profile_photo_url,
     createdAt: createdSupabaseUser.created_at,
     forcePasswordChange: createdSupabaseUser.force_password_change,
@@ -156,7 +150,6 @@ export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profil
 export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'createdAt'>): Promise<User> => {
   console.log("dataService: createUserFromRegistration (self-registration) called with username:", userData.username);
   
-  // 1. Check if username already exists
   const { data: existingUser, error: checkError } = await supabase.from('users').select('id').eq('username', userData.username).maybeSingle();
   if (checkError && checkError.code !== 'PGRST116') {
     console.error('dataService: Error checking for existing username during registration:', checkError);
@@ -167,19 +160,17 @@ export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'cr
     throw new Error("User with this username already exists.");
   }
   
-  // 2. Prepare payload for Supabase (snake_case)
   const newUserPayload = {
     name: userData.name,
     username: userData.username,
     contact: userData.contact,
-    password: userData.password, // User provides this during registration, should be hashed
+    password: userData.password, 
     force_password_change: userData.forcePasswordChange !== undefined ? userData.forcePasswordChange : false,
     profile_photo_url: userData.profilePhotoUrl,
     created_at: new Date().toISOString(),
   };
   console.log("dataService: createUserFromRegistration - inserting payload:", newUserPayload);
 
-  // 3. Insert into Supabase
   const { data: createdSupabaseUser, error: insertError } = await supabase
     .from('users')
     .insert(newUserPayload)
@@ -196,14 +187,13 @@ export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'cr
   }
   console.log("dataService: createUserFromRegistration - Supabase insert successful, raw data:", createdSupabaseUser);
 
-  // 4. Add Audit Log (optional for self-registration, but good for tracking)
   const admins = await getAdmins();
   if (admins.length > 0) {
-    const reportingAdmin = admins[0]; // For logging system events
+    const reportingAdmin = admins[0]; 
      try {
         await addAuditLog({
-            adminId: reportingAdmin.id, // Or a system/service account ID
-            adminName: reportingAdmin.name, // Or "System"
+            adminId: reportingAdmin.id, 
+            adminName: reportingAdmin.name, 
             action: `New user self-registered: ${createdSupabaseUser.username}`,
             timestamp: new Date().toISOString(),
             details: { userId: createdSupabaseUser.id, username: createdSupabaseUser.username, name: createdSupabaseUser.name, contact: createdSupabaseUser.contact }
@@ -213,13 +203,12 @@ export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'cr
     }
   }
 
-  // 5. Map to application User type (camelCase) and return
   const appUser: User = {
     id: createdSupabaseUser.id,
     name: createdSupabaseUser.name,
     username: createdSupabaseUser.username,
     contact: createdSupabaseUser.contact,
-    password: createdSupabaseUser.password, // Be cautious
+    password: createdSupabaseUser.password, 
     profilePhotoUrl: createdSupabaseUser.profile_photo_url,
     createdAt: createdSupabaseUser.created_at,
     forcePasswordChange: createdSupabaseUser.force_password_change,
@@ -231,7 +220,6 @@ export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'cr
 export const updateUser = async (id: string, updates: Partial<User>): Promise<User | undefined> => {
   console.log(`dataService: updateUser called for ID: ${id} with updates:`, JSON.stringify(updates));
   
-  // 1. Check username availability if it's being changed
   if (updates.username) {
       const { data: userBeforeUpdate, error: fetchError } = await supabase.from('users').select('username').eq('id', id).single();
       if (fetchError && fetchError.code !== 'PGRST116') {
@@ -256,23 +244,20 @@ export const updateUser = async (id: string, updates: Partial<User>): Promise<Us
       }
   }
 
-  // 2. Prepare payload for Supabase (snake_case)
   const updatePayload: Record<string, any> = {};
   if (updates.name !== undefined) updatePayload.name = updates.name;
   if (updates.username !== undefined) updatePayload.username = updates.username;
   if (updates.contact !== undefined) updatePayload.contact = updates.contact;
-  if (updates.password !== undefined) updatePayload.password = updates.password; // Handle with care
+  if (updates.password !== undefined) updatePayload.password = updates.password; 
   if (updates.profilePhotoUrl !== undefined) updatePayload.profile_photo_url = updates.profilePhotoUrl;
   if (updates.forcePasswordChange !== undefined) updatePayload.force_password_change = updates.forcePasswordChange;
-  // Do not allow client to update 'created_at' or 'id' directly through this function.
   
   if (Object.keys(updatePayload).length === 0) {
     console.warn("dataService: updateUser called with no actual changes to update.");
-    return getUserById(id); // Return current user data if no updates
+    return getUserById(id); 
   }
   console.log("dataService: updateUser - updating with payload:", updatePayload);
 
-  // 3. Update in Supabase
   const { data: updatedSupabaseUser, error: updateError } = await supabase
     .from('users')
     .update(updatePayload)
@@ -290,13 +275,12 @@ export const updateUser = async (id: string, updates: Partial<User>): Promise<Us
   }
   console.log("dataService: updateUser - Supabase update successful, raw data:", updatedSupabaseUser);
   
-  // 4. Map to application User type (camelCase) and return
   const appUser: User = {
     id: updatedSupabaseUser.id,
     name: updatedSupabaseUser.name,
     username: updatedSupabaseUser.username,
     contact: updatedSupabaseUser.contact,
-    password: updatedSupabaseUser.password, // Be cautious
+    password: updatedSupabaseUser.password, 
     profilePhotoUrl: updatedSupabaseUser.profile_photo_url,
     createdAt: updatedSupabaseUser.created_at,
     forcePasswordChange: updatedSupabaseUser.force_password_change,
@@ -307,8 +291,6 @@ export const updateUser = async (id: string, updates: Partial<User>): Promise<Us
 
 export const deleteUser = async (id: string): Promise<boolean> => {
   console.log(`dataService: deleteUser called for ID: ${id}`);
-  // Consider deleting related data (savings, loans, profits) or handling foreign key constraints (e.g., ON DELETE CASCADE)
-  // For now, just deleting the user.
   const { error } = await supabase
     .from('users')
     .delete()
@@ -331,7 +313,7 @@ export const checkUsernameAvailability = async (username: string): Promise<boole
 
   if (error) {
     console.error('dataService: Error checking username availability:', error.message);
-    return false; // Fail safe, assume not available if error
+    return false; 
   }
   const isAvailable = count === 0;
   console.log(`dataService: Username "${username}" availability: ${isAvailable}`);
@@ -352,7 +334,6 @@ export const getSavingsByUserId = async (userId: string): Promise<SavingTransact
     console.error(`dataService: Error fetching savings for user ${userId}:`, error.message);
     throw new Error(`Failed to fetch savings for user ${userId}: ${error.message}`);
   }
-  // Map to application type
   const mappedSavings = (savings || []).map(s => ({
     id: s.id,
     userId: s.user_id,
@@ -390,12 +371,11 @@ export const addSavingTransaction = async (transaction: Omit<SavingTransaction, 
   }
   console.log("dataService: addSavingTransaction successfully added transaction, raw data:", newTransactionData);
   
-  // Audit Log for admin adding transaction (if applicable, or system event)
   const admins = await getAdmins();
   const user = await getUserById(transaction.userId);
-  if (admins.length > 0 && user) { // Assuming admin action if user is known
+  if (admins.length > 0 && user) { 
       try {
-        const admin = admins[0]; // Simplification for mock
+        const admin = admins[0]; 
         await addAuditLog({
             adminId: admin.id,
             adminName: admin.name,
@@ -420,11 +400,11 @@ export const addSavingTransaction = async (transaction: Omit<SavingTransaction, 
 
 export const updateUserSavings = async (userId: string, newTotalSavingsAmount: number, date: string, adminId: string, adminName: string): Promise<SavingTransaction | undefined> => {
   console.log(`dataService: updateUserSavings called for user ID: ${userId}, newTotal: ${newTotalSavingsAmount}`);
-  const userSavings = await getSavingsByUserId(userId); // This already logs
+  const userSavings = await getSavingsByUserId(userId); 
   const currentTotalSavings = userSavings.reduce((acc, s) => acc + (s.type === 'deposit' ? s.amount : -s.amount), 0);
   const adjustmentAmount = newTotalSavingsAmount - currentTotalSavings;
 
-  if (Math.abs(adjustmentAmount) < 0.01) { // Threshold to avoid tiny adjustments
+  if (Math.abs(adjustmentAmount) < 0.01) { 
     console.log("dataService: updateUserSavings - no significant adjustment needed.");
     return undefined;
   }
@@ -435,21 +415,20 @@ export const updateUserSavings = async (userId: string, newTotalSavingsAmount: n
   const transactionPayload: Omit<SavingTransaction, 'id'> = {
     userId: userId,
     amount: absAdjustmentAmount,
-    date: date, // Use provided date for adjustment
+    date: date, 
     type: transactionType,
   };
   
-  const newTransaction = await addSavingTransaction(transactionPayload); // This will also log audit
+  const newTransaction = await addSavingTransaction(transactionPayload); 
   console.log("dataService: updateUserSavings created adjustment transaction:", newTransaction);
 
   const user = await getUserById(userId);
-  // Specific audit for the adjustment action itself
    try {
     await addAuditLog({
         adminId: adminId,
         adminName: adminName,
         action: `Admin adjusted savings for ${user?.name || `user ID ${userId}`}. New total: ${newTotalSavingsAmount}. Adjustment: ${transactionType} of ${absAdjustmentAmount}`,
-        timestamp: new Date().toISOString(), // Use current time for audit log
+        timestamp: new Date().toISOString(), 
         details: { 
             transactionId: newTransaction.id, 
             userId: userId, 
@@ -532,7 +511,7 @@ export const getLoansByUserId = async (userId: string): Promise<LoanRequest[]> =
   console.log(`dataService: getLoansByUserId called for user ID: ${userId}`);
   const { data: loans, error } = await supabase
     .from('loans')
-    .select('*') // If user name is needed, join with users table or fetch separately
+    .select('*') 
     .eq('user_id', userId)
     .order('requested_at', { ascending: false });
 
@@ -543,7 +522,6 @@ export const getLoansByUserId = async (userId: string): Promise<LoanRequest[]> =
   const mappedLoans = (loans || []).map(l => ({
     id: l.id,
     userId: l.user_id,
-    // userName: l.users?.name, // This would require a join or separate fetch
     amount: l.amount,
     reason: l.reason,
     status: l.status,
@@ -562,12 +540,12 @@ export const getAllLoans = async (): Promise<LoanRequest[]> => {
       id,
       user_id,
       amount,
-      reason,
       status,
       requested_at,
       reviewed_at,
       users ( name ) 
     `) 
+    // Removed 'reason' from select as it might not exist
     .order('requested_at', { ascending: false });
 
   if (error) {
@@ -577,9 +555,9 @@ export const getAllLoans = async (): Promise<LoanRequest[]> => {
   const mappedLoans = (loans || []).map(loan => ({
     id: loan.id,
     userId: loan.user_id,
-    userName: (loan as any).users?.name || `User ID: ${loan.user_id}`, // Handle if user relation is missing
+    userName: (loan as any).users?.name || `User ID: ${loan.user_id}`, 
     amount: loan.amount,
-    reason: loan.reason,
+    reason: (loan as any).reason, // Will be undefined if not selected or doesn't exist; type is reason?
     status: loan.status,
     requestedAt: loan.requested_at,
     reviewedAt: loan.reviewed_at,
@@ -590,16 +568,19 @@ export const getAllLoans = async (): Promise<LoanRequest[]> => {
 
 export const addLoanRequest = async (request: Omit<LoanRequest, 'id' | 'status' | 'requestedAt' | 'userName' | 'reviewedAt'>): Promise<LoanRequest> => {
   console.log("dataService: addLoanRequest called for user ID:", request.userId, "Amount:", request.amount);
-  const user = await getUserById(request.userId); // To get userName for the returned object
+  const user = await getUserById(request.userId); 
   
-  const payload = {
+  const payload: any = { // Use 'any' temporarily for conditional property
     user_id: request.userId,
     amount: request.amount,
-    reason: request.reason,
     status: 'pending' as LoanStatus,
     requested_at: new Date().toISOString(),
-    // reviewed_at will be null initially
   };
+
+  // Only include reason in the payload if it's provided
+  if (request.reason) {
+    payload.reason = request.reason;
+  }
   console.log("dataService: addLoanRequest - inserting payload:", payload);
 
   const { data: newRequestData, error } = await supabase
@@ -610,6 +591,12 @@ export const addLoanRequest = async (request: Omit<LoanRequest, 'id' | 'status' 
 
   if (error) {
     console.error('dataService: Error adding loan request:', error);
+    // More specific error for missing column
+    if (error.message.includes("column") && error.message.includes("does not exist") && payload.reason) {
+        console.error("dataService: It seems the 'reason' column does not exist in the 'loans' table. Loan reason was not saved.");
+        // Optionally, re-try insert without reason, or inform user. For now, let error propagate.
+        throw new Error(`Failed to add loan request: ${error.message}. The 'reason' field might be missing in your database 'loans' table.`);
+    }
     throw new Error(error.message || "Failed to add loan request.");
   }
   if (!newRequestData) {
@@ -621,12 +608,12 @@ export const addLoanRequest = async (request: Omit<LoanRequest, 'id' | 'status' 
   const appRequest: LoanRequest = { 
     id: newRequestData.id,
     userId: newRequestData.user_id, 
-    userName: user?.name, // Add userName from fetched user
+    userName: user?.name, 
     amount: newRequestData.amount,
     reason: newRequestData.reason,
     status: newRequestData.status,
     requestedAt: newRequestData.requested_at,
-    reviewedAt: newRequestData.reviewed_at, // Will be null
+    reviewedAt: newRequestData.reviewed_at, 
   };
   return appRequest;
 };
@@ -660,7 +647,7 @@ export const updateLoanStatus = async (loanId: string, status: LoanStatus, admin
   console.log("dataService: updateLoanStatus successfully updated loan, raw data:", updatedLoanData);
 
   const admins = await getAdmins();
-  const admin = admins.find(a => a.id === adminId) || admins[0]; // Fallback to first admin for logging
+  const admin = admins.find(a => a.id === adminId) || admins[0]; 
   
   const appLoan: LoanRequest = {
       id: updatedLoanData.id,
@@ -720,7 +707,7 @@ export const addAuditLog = async (logEntry: Omit<AuditLogEntry, 'id'>): Promise<
       admin_name: logEntry.adminName,
       action: logEntry.action,
       timestamp: logEntry.timestamp,
-      details: logEntry.details, // Ensure this is a valid JSONB if your Supabase column is JSONB
+      details: logEntry.details, 
   };
   console.log("dataService: addAuditLog - inserting payload:", payload);
 
@@ -732,11 +719,9 @@ export const addAuditLog = async (logEntry: Omit<AuditLogEntry, 'id'>): Promise<
 
   if (error) {
     console.error('dataService: Error adding audit log:', error);
-    // Do not throw error here as audit logging is secondary. Log prominently.
     console.error(`CRITICAL: Failed to add audit log for action "${logEntry.action}": ${error.message}`);
-    // Return a reconstructed log entry or a specific error object if needed.
     return {
-        id: 'AUDIT_LOG_FAILED_' + new Date().getTime(), // Special ID to indicate failure
+        id: 'AUDIT_LOG_FAILED_' + new Date().getTime(), 
         ...logEntry
     } as AuditLogEntry; 
   }
@@ -779,7 +764,6 @@ export const subscribeToTable = (tableName: string, callback: (payload: any) => 
       }
     });
   
-  // Return the channel so the caller can unsubscribe
   return {
     unsubscribe: () => {
       console.log(`dataService: Unsubscribing from ${tableName}`);
@@ -788,10 +772,8 @@ export const subscribeToTable = (tableName: string, callback: (payload: any) => 
   };
 };
 
-// Specific subscriptions using the generic function
 export const subscribeToSavings = (callback: (change: any) => void) => subscribeToTable('savings', callback);
 export const subscribeToProfits = (callback: (change: any) => void) => subscribeToTable('profits', callback);
 export const subscribeToLoans = (callback: (change: any) => void) => subscribeToTable('loans', callback);
 export const subscribeToAuditLogs = (callback: (change: any) => void) => subscribeToTable('audit_logs', callback);
 export const subscribeToUsers = (callback: (change: any) => void) => subscribeToTable('users', callback);
-

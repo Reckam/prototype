@@ -38,7 +38,7 @@ export interface LoanRequest {
   userId: string;
   userName?: string; // For admin view
   amount: number;
-  reason: string;
+  reason?: string; // Made optional as it might not exist in the DB
   status: LoanStatus;
   requestedAt: string;
   reviewedAt?: string;
@@ -62,4 +62,3 @@ export interface AppData {
   loans: LoanRequest[];
   auditLogs: AuditLogEntry[];
 }
-
