@@ -1,4 +1,3 @@
-
 "use client";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -6,14 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input"; 
-import { Label } from "@/components/ui/label"; 
-import { getUsers, deleteUser as deleteDataUser, updateUserSavings, getSavingsByUserId, getProfitsByUserId, getLoansByUserId, addAuditLog } from "@/lib/dataService";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+// Import subscribeToUsers
+import { getUsers, deleteUser as deleteDataUser, updateUserSavings, getSavingsByUserId, getProfitsByUserId, getLoansByUserId, addAuditLog, subscribeToUsers } from "@/lib/dataService";
 import { useToast } from "@/hooks/use-toast";
 import type { User, SavingTransaction, ProfitEntry, LoanRequest, Admin } from "@/types";
 import { Users, PlusCircle, Edit, Trash2, Eye, RefreshCw, Phone } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react"; // Import useRef
 import { format } from "date-fns";
 import { getCurrentAdmin } from "@/lib/authService";
 
@@ -32,6 +32,9 @@ export default function ManageUsersPage() {
   const [admin, setAdmin] = useState<Admin | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
+  // Create a ref to hold the unsubscribe function
+  const usersSubscriptionRef = useRef<() => void | null>(null);
+
 
   const { toast } = useToast();
 
@@ -39,7 +42,44 @@ export default function ManageUsersPage() {
     const currentAdmin = getCurrentAdmin();
     setAdmin(currentAdmin);
     fetchUsers();
-  }, []);
+
+    // Set up the real-time subscription after initial fetch
+    const usersChannel = subscribeToUsers((payload) => {
+      console.log('Real-time user change:', payload);
+
+      // Handle different event types
+      if (payload.eventType === 'INSERT') {
+        // For a new user, we don't have the calculated fields yet.
+        // We can either re-fetch all users, or add a partial user and re-fetch in the background.
+        // Re-fetching all users is simpler for now.
+        toast({ title: "New User Added", description: `User ${payload.new.name || payload.new.username} was added.` });
+         fetchUsers();
+
+      } else if (payload.eventType === 'DELETE') {
+        // When a user is deleted, re-fetch the list to update the calculated fields correctly.
+        toast({ title: "User Deleted", description: `User with ID ${payload.old.id} was deleted.` });
+        fetchUsers();
+
+      } else if (payload.eventType === 'UPDATE') {
+        // When a user is updated, re-fetch the list to update calculated fields like total savings if needed.
+        toast({ title: "User Updated", description: `User with ID ${payload.new.id} was updated.` });
+        fetchUsers();
+      }
+    });
+
+    // Store the unsubscribe function in the ref
+    usersSubscriptionRef.current = () => usersChannel.unsubscribe();
+
+    // Cleanup function: unsubscribe when the component unmounts
+    return () => {
+      console.log('Unsubscribing from users channel');
+      if (usersSubscriptionRef.current) {
+        usersSubscriptionRef.current();
+      }
+    };
+
+  }, []); // Empty dependency array ensures this effect runs only once on mount
+
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -47,6 +87,8 @@ export default function ManageUsersPage() {
       const basicUsers = await getUsers();
       const usersWithDetails = await Promise.all(
         basicUsers.map(async (user) => {
+          // It's more efficient to fetch savings, profits, and loans only when needed (e.g., viewing details)
+          // But for displaying totals in the list, we fetch them here.
           const [savings, profits, loans] = await Promise.all([
             getSavingsByUserId(user.id),
             getProfitsByUserId(user.id),
@@ -76,25 +118,21 @@ export default function ManageUsersPage() {
     if (confirmed) {
       try {
         await deleteDataUser(userId);
+        // Real-time subscription will handle the UI update, but we'll still log.
         await addAuditLog({
             adminId: admin.id,
             adminName: admin.name,
-            action: `Deleted user: ${userName} (ID: ${userId})`,
-            timestamp: new Date().toISOString(),
-            details: { userId, userName }
-        });
-        toast({ title: "User Deleted", description: `User ${userName} has been successfully deleted.` });
-        fetchUsers(); // Refresh user list
-      } catch (error) {
-        console.error("Failed to delete user:", error);
-        toast({ variant: "destructive", title: "Deletion Failed", description: "Could not delete the user." });
+            action: `Deleted user: ${userName} (ID: ${userId})`,\n timestamp: new Date().toISOString(),\n details: { userId, userName }\n        });
+        toast({ title: "User Deletion Initiated", description: `Attempting to delete user ${userName}. The list will update shortly.` });
+        // No need to call fetchUsers() here, the real-time update will handle it
+      } catch (error) {\n console.error("Failed to delete user:", error);\n toast({ variant: "destructive", title: "Deletion Failed", description: "Could not delete the user." });
       }
     }
   };
-  
+
   const handleEditSavings = (user: UserWithDetails) => {
     setSelectedUserForEdit(user);
-    setNewSavingsAmount(user.totalSavings.toString()); 
+    setNewSavingsAmount(user.totalSavings.toString());
   };
 
   const handleSaveSavingsUpdate = async () => {
@@ -107,13 +145,13 @@ export default function ManageUsersPage() {
       toast({ variant: "destructive", title: "Invalid Amount", description: "Please enter a valid number for savings." });
       return;
     }
-    
+
     try {
-      await updateUserSavings(selectedUserForEdit.id, amount, new Date().toISOString(), admin.id, admin.name); 
-      toast({ title: "Savings Updated", description: `Savings for ${selectedUserForEdit.name} updated.` });
+      await updateUserSavings(selectedUserForEdit.id, amount, new Date().toISOString(), admin.id, admin.name);
+      toast({ title: "Savings Update Initiated", description: `Attempting to update savings for ${selectedUserForEdit.name}. The list will update shortly.` });
       setSelectedUserForEdit(null);
       setNewSavingsAmount("");
-      fetchUsers(); 
+       // No need to call fetchUsers() here, the real-time update will handle it
     } catch (error) {
       console.error("Failed to update savings:", error);
       toast({ variant: "destructive", title: "Update Failed", description: "Could not update savings." });
@@ -147,13 +185,14 @@ export default function ManageUsersPage() {
           <Users className="mr-3 h-6 w-6 text-primary" /> Manage Users
         </h1>
         <div className="flex gap-2 w-full sm:w-auto">
-           <Input 
+           <Input
             type="search"
             placeholder="Search users..."
             className="max-w-xs w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          {/* Keep refresh button for manual refresh if needed */}
           <Button variant="outline" size="icon" onClick={fetchUsers} className="mr-2 shrink-0">
             <RefreshCw className="h-4 w-4" />
             <span className="sr-only">Refresh Users</span>
@@ -172,8 +211,7 @@ export default function ManageUsersPage() {
           <CardDescription>View, edit, and manage all users in the system.</CardDescription>
         </CardHeader>
         <CardContent>
-          {filteredUsers.length > 0 ? (
-            <Table>
+          {filteredUsers.length > 0 ? (\n            <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
@@ -196,66 +234,18 @@ export default function ManageUsersPage() {
                     <TableCell className="text-right">{formatCurrency(user.totalSavings)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(user.totalProfits)}</TableCell>
                     <TableCell className="text-center">{user.activeLoans}</TableCell>
-                    <TableCell className="text-right space-x-1">
-                       <Dialog>
-                        <DialogTrigger asChild>
-                           <Button variant="outline" size="sm" onClick={() => handleEditSavings(user)}> {/* Changed to size sm */}
-                            <Edit className="mr-1 h-3 w-3" /> Edit Savings
-                          </Button>
-                        </DialogTrigger>
-                        {selectedUserForEdit && selectedUserForEdit.id === user.id && (
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Edit Savings for {selectedUserForEdit.name}</DialogTitle>
-                              <DialogDescription>
-                                Enter the new total savings amount. This will create an adjustment transaction.
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                              <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="savings-amount" className="text-right col-span-1">
-                                  Savings
-                                </Label>
-                                <Input
-                                  id="savings-amount"
-                                  type="number"
-                                  value={newSavingsAmount}
-                                  onChange={(e) => setNewSavingsAmount(e.target.value)}
-                                  className="col-span-3"
-                                />
+                    <TableCell className="text-right space-x-1">\n                       <Dialog>\n                        <DialogTrigger asChild>\n                           <Button variant=\"outline\" size=\"sm\" onClick={() => handleEditSavings(user)}> {/* Changed to size sm */}\n                            <Edit className=\"mr-1 h-3 w-3\" /> Edit Savings\n                          </Button>\n                        </DialogTrigger>\n                        {selectedUserForEdit && selectedUserForEdit.id === user.id && (\n                          <DialogContent>\n                            <DialogHeader>\n                              <DialogTitle>Edit Savings for {selectedUserForEdit.name}</DialogTitle>\n                              <DialogDescription>\n                                Enter the new total savings amount. This will create an adjustment transaction.\n                              </DialogDescription>\n                            </DialogHeader>\n                            <div className=\"grid gap-4 py-4\">\n                              <div className=\"grid grid-cols-4 items-center gap-4\">\n                                <Label htmlFor=\"savings-amount\" className=\"text-right col-span-1\">\n                                  Savings\n                                </Label>\n                                <Input\n                                  id=\"savings-amount\"\n                                  type=\"number\"\n                                  value={newSavingsAmount}\n                                  onChange={(e) => setNewSavingsAmount(e.target.value)}\n                                  className=\"col-span-3\"\n                                />
                               </div>
                             </div>
-                            <DialogFooter>
-                               <DialogClose asChild>
-                                <Button variant="outline">Cancel</Button>
-                              </DialogClose>
-                              <Button onClick={handleSaveSavingsUpdate}>Save Changes</Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        )}
-                      </Dialog>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.id, user.name)} className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Delete User</span>
-                      </Button>
+                            <DialogFooter>\n                               <DialogClose asChild>\n                                <Button variant=\"outline\">Cancel</Button>\n                              </DialogClose>\n                              <Button onClick={handleSaveSavingsUpdate}>Save Changes</Button>\n                            </DialogFooter>\n                          </DialogContent>\n                        )}\n                      </Dialog>
+                      <Button variant=\"ghost\" size=\"icon\" onClick={() => handleDeleteUser(user.id, user.name)} className=\"text-destructive hover:text-destructive\">\n                        <Trash2 className=\"h-4 w-4\" />
+                        <span className=\"sr-only\">Delete User</span>\n                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
-          ) : (
-             <div className="text-center py-8">
-              <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
-                {searchTerm ? "No users match your search criteria." : "No users found in the system."}
-              </p>
-               <Button asChild className="mt-4">
-                <Link href="/dashboard/admin/users/add">Add First User</Link>
-              </Button>
-            </div>
-          )}
+            </Table>\n          ) : (\n             <div className=\"text-center py-8\">\n              <Users className=\"mx-auto h-12 w-12 text-muted-foreground mb-4\" />\n              <p className=\"text-muted-foreground\">\n                {searchTerm ? "No users match your search criteria." : "No users found in the system."}\n              </p>\n               <Button asChild className=\"mt-4\">\n                <Link href=\"/dashboard/admin/users/add\">Add First User</Link>\n              </Button>\n            </div>\n          )}
         </CardContent>
       </Card>
-    </DashboardLayout>
-  );
+    </DashboardLayout>\n  );
 }

@@ -1,186 +1,102 @@
+"use client";
+import { supabase } from "@/lib/supabaseClient";
+import type { User } from "@supabase/supabase-js";
+import { getAdmins, addAuditLog } from "./dataService";
 
-// Mock authentication service
-"use client"; // Required for localStorage access
-
-import type { User, Admin } from '@/types';
-import { USER_STORAGE_KEY, ADMIN_STORAGE_KEY } from '@/lib/constants';
-import { getUsers, getAdmins, createUserFromRegistration, addAuditLog, updateUser as updateUserDataService, getUserById as getDataUserById } from './dataService'; 
-
-// User Authentication
-export const registerUser = async (name: string, username: string, passwordPlain: string, contact?: string, profilePhotoUrl?: string): Promise<{ user?: User, error?: string }> => {
+// Register User
+export const registerUser = async (
+  name: string,
+  email: string,
+  password: string,
+  contact?: string,
+  profilePhotoUrl?: string
+): Promise<{ user?: User; error?: string }> => {
   try {
-    const createdUser = await createUserFromRegistration({
-      name,
-      username,
-      password: passwordPlain,
-      contact,
-      profilePhotoUrl,
-      forcePasswordChange: false, // Self-registered users set their own password
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          contact,
+          profilePhotoUrl,
+          role: "user",
+        },
+      },
     });
 
-    if (createdUser) {
-      // Add audit log for admin notification
-      const admins = await getAdmins();
-      if (admins.length > 0) {
-        const reportingAdmin = admins[0]; // Use first admin as a placeholder for system/auto-logged events
-        await addAuditLog({
-          adminId: reportingAdmin.id,
-          adminName: reportingAdmin.name,
-          action: `New user self-registered: ${username}`,
-          timestamp: new Date().toISOString(),
-          details: { userId: createdUser.id, username: createdUser.username, name: createdUser.name, contact: createdUser.contact }
-        });
-      }
-      return { user: createdUser };
-    } else {
-      // This case should ideally not be reached if createUserFromRegistration throws errors for failures
-      return { error: "Failed to create user account." };
+    if (error) return { error: error.message };
+
+    const admins = await getAdmins();
+    if (admins.length > 0) {
+      const admin = admins[0];
+      await addAuditLog({
+        adminId: admin.id,
+        adminName: admin.name,
+        action: `New user registered: ${email}`,
+        timestamp: new Date().toISOString(),
+        details: { email, name, contact },
+      });
     }
+
+    return { user: data.user as User };
   } catch (e: any) {
-    return { error: e.message || "Failed to register user." };
+    return { error: e.message || "Registration failed." };
   }
 };
 
-export const loginUser = async (loginUsername: string, passwordPlain: string): Promise<{ user?: User, error?: string }> => {
-  const users = await getUsers();
-  const user = users.find(u => u.username === loginUsername);
-  
-  if (user) {
-    // Check password
-    if (user.password !== passwordPlain) {
-      return { error: "Invalid username or password." };
-    }
-
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
-    }
-    // The `forcePasswordChange` flag is returned with the user object
-    // and will be checked by the calling page to determine redirection.
-    return { user };
-  }
-  return { error: "Invalid username or password." };
+// Login User
+export const loginUser = async (
+  email: string,
+  password: string
+): Promise<{ user?: User; error?: string }> => {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) return { error: error.message };
+  return { user: data.user as User };
 };
 
-export const logoutUser = (): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem(USER_STORAGE_KEY);
-  }
+// Logout User
+export const logoutUser = async (): Promise<void> => {
+  await supabase.auth.signOut();
 };
 
-export const getCurrentUser = (): User | null => {
-  if (typeof window !== 'undefined') {
-    const userJson = localStorage.getItem(USER_STORAGE_KEY);
-    return userJson ? JSON.parse(userJson) as User : null;
-  }
-  return null;
+// Get Current User
+export const getCurrentUser = async (): Promise<User | null> => {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) return null;
+  return data.user || null;
 };
 
-export const updateUserInSession = (updatedUser: User): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
-  }
+// Request Password Reset
+export const requestPasswordReset = async (
+  email: string
+): Promise<{ success: boolean; message: string }> => {
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  const msg = `If an account with ${email} exists, a reset link was sent.`;
+  return { success: !error, message: msg };
 };
 
-
-export const requestPasswordReset = async (username: string): Promise<{ success: boolean, message: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 500)); 
-  const users = await getUsers();
-  const userExists = users.some(u => u.username === username);
-  
-  const message = `If an account with the username "${username}" exists, a password reset link has been sent (simulated).`;
-  
-  if (userExists) {
-    console.log(`Simulating password reset email for ${username}`);
-    return { success: true, message };
-  } else {
-    console.log(`Password reset attempted for non-existent username: ${username}`);
-    return { success: true, message }; 
-  }
+// Change User Password
+export const changeUserPassword = async (
+  newPassword: string
+): Promise<{ success: boolean; message: string }> => {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) return { success: false, message: error.message };
+  return { success: true, message: "Password updated successfully." };
 };
 
-export const changeUserPassword = async (userId: string, currentPasswordPlain: string, newPasswordPlain: string): Promise<{ success: boolean, message: string }> => {
-  await new Promise(resolve => setTimeout(resolve, 500)); 
-  const user = await getDataUserById(userId);
+// Admin Login
+export const loginAdmin = async (
+  email: string,
+  password: string
+): Promise<{ admin?: User; error?: string }> => {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) return { error: error.message };
 
-  if (!user) {
-    return { success: false, message: "User not found." };
+  const user = data.user;
+  if (user.user_metadata.role !== "admin") {
+    return { error: "Not an admin account" };
   }
 
-  if (user.password !== currentPasswordPlain) {
-    return { success: false, message: "Current password incorrect." };
-  }
-
-  const updatedUser = await updateUserDataService(userId, { password: newPasswordPlain });
-  if (updatedUser) {
-    updateUserInSession(updatedUser); // Update session with new user details (including potentially changed password if stored - though usually not directly)
-    return { success: true, message: "Password updated successfully." };
-  } else {
-    return { success: false, message: "Failed to update password in data service." };
-  }
-};
-
-export const completeInitialSetup = async (userId: string, newUsername: string, newPasswordPlain: string): Promise<{user?: User, error?: string}> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  const user = await getDataUserById(userId);
-  if (!user) {
-    return { error: "User not found." };
-  }
-
-  const updates: Partial<User> = {
-    username: newUsername,
-    password: newPasswordPlain,
-    forcePasswordChange: false,
-  };
-
-  try {
-    const updatedUser = await updateUserDataService(userId, updates);
-    if (updatedUser) {
-      updateUserInSession(updatedUser);
-      return { user: updatedUser };
-    } else {
-      return { error: "Failed to update user credentials." };
-    }
-  } catch (e: any) {
-    return { error: e.message || "An error occurred during setup." };
-  }
-};
-
-
-// Admin Authentication
-export const loginAdmin = async (username: string, passwordPlain: string): Promise<{ admin?: Admin, error?: string }> => {
-  const admins = await getAdmins();
-  const admin = admins.find(a => a.email === username); 
-  
-  if (admin) {
-    // For the specific admin with email "admin", password must be "0000"
-    if (admin.email === "admin" && passwordPlain === "0000") {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(admin));
-      }
-      return { admin };
-    } 
-    // For any other admin, in this mock, we are not checking password for simplicity.
-    // A real app would check a hashed password.
-    else if (admin.email !== "admin") {
-        if (typeof window !== 'undefined') {
-            localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(admin));
-        }
-        return { admin }; 
-    }
-  }
-  return { error: "Invalid admin credentials" };
-};
-
-export const logoutAdmin = (): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem(ADMIN_STORAGE_KEY);
-  }
-};
-
-export const getCurrentAdmin = (): Admin | null => {
-  if (typeof window !== 'undefined') {
-    const adminJson = localStorage.getItem(ADMIN_STORAGE_KEY);
-    return adminJson ? JSON.parse(adminJson) as Admin : null;
-  }
-  return null;
+  return { admin: user };
 };
