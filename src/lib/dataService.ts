@@ -31,7 +31,7 @@ export const getUsers = async (): Promise<User[]> => {
   const users = (supabaseUsers || []).map(u => ({
     id: u.id,
     name: u.name,
-    username: u.username,
+    username: u.email, // Map 'email' from DB to 'username' for app
     contact: u.contact,
     password: u.password, // Be cautious with password handling
     profilePhotoUrl: u.profile_photo_url,
@@ -65,7 +65,7 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
   const mappedUser = {
     id: user.id,
     name: user.name,
-    username: user.username,
+    username: user.email, // Map 'email' from DB to 'username' for app
     contact: user.contact,
     password: user.password,
     profilePhotoUrl: user.profile_photo_url,
@@ -79,19 +79,19 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
 export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profilePhotoUrl' | 'contact'>): Promise<User> => {
   console.log("dataService: addUser (admin action) called with userStub:", userStub);
   
-  const { data: existingUser, error: checkError } = await supabase.from('users').select('id').eq('username', userStub.username).maybeSingle();
+  const { data: existingUser, error: checkError } = await supabase.from('users').select('id').eq('email', userStub.username).maybeSingle();
   if (checkError && checkError.code !== 'PGRST116') {
-    console.error('dataService: Error checking for existing username during addUser:', checkError);
-    throw new Error(`Failed to check username: ${checkError.message}`);
+    console.error('dataService: Error checking for existing email during addUser:', checkError);
+    throw new Error(`Failed to check email: ${checkError.message}`);
   }
   if (existingUser) {
-    console.warn("dataService: User with this username already exists:", userStub.username);
-    throw new Error("User with this username already exists.");
+    console.warn("dataService: User with this email already exists:", userStub.username);
+    throw new Error("User with this email already exists.");
   }
 
   const newUserPayload = {
     name: userStub.name,
-    username: userStub.username,
+    email: userStub.username, // Map app's 'username' to DB's 'email' column
     contact: userStub.contact,
     password: "1234", 
     force_password_change: true,
@@ -123,9 +123,9 @@ export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profil
       await addAuditLog({
         adminId: admin.id,
         adminName: admin.name,
-        action: `Admin created new user: ${createdSupabaseUser.username}`,
+        action: `Admin created new user: ${createdSupabaseUser.email}`,
         timestamp: new Date().toISOString(),
-        details: { userId: createdSupabaseUser.id, username: createdSupabaseUser.username, name: createdSupabaseUser.name }
+        details: { userId: createdSupabaseUser.id, username: createdSupabaseUser.email, name: createdSupabaseUser.name }
       });
     } catch (auditError: any) {
         console.error("dataService: Failed to add audit log for user creation:", auditError.message);
@@ -135,7 +135,7 @@ export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profil
   const appUser: User = {
     id: createdSupabaseUser.id,
     name: createdSupabaseUser.name,
-    username: createdSupabaseUser.username,
+    username: createdSupabaseUser.email, // Map email from DB to username for app
     contact: createdSupabaseUser.contact,
     password: createdSupabaseUser.password, 
     profilePhotoUrl: createdSupabaseUser.profile_photo_url,
@@ -149,19 +149,19 @@ export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profil
 export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'createdAt'>): Promise<User> => {
   console.log("dataService: createUserFromRegistration (self-registration) called with username:", userData.username);
   
-  const { data: existingUser, error: checkError } = await supabase.from('users').select('id').eq('username', userData.username).maybeSingle();
+  const { data: existingUser, error: checkError } = await supabase.from('users').select('id').eq('email', userData.username).maybeSingle();
   if (checkError && checkError.code !== 'PGRST116') {
-    console.error('dataService: Error checking for existing username during registration:', checkError);
-    throw new Error(`Failed to check username: ${checkError.message}`);
+    console.error('dataService: Error checking for existing email during registration:', checkError);
+    throw new Error(`Failed to check email: ${checkError.message}`);
   }
   if (existingUser) {
-    console.warn("dataService: User with this username already exists (registration):", userData.username);
-    throw new Error("User with this username already exists.");
+    console.warn("dataService: User with this email already exists (registration):", userData.username);
+    throw new Error("User with this email already exists.");
   }
   
   const newUserPayload = {
     name: userData.name,
-    username: userData.username,
+    email: userData.username, // Map app's 'username' to DB's 'email' column
     contact: userData.contact,
     password: userData.password, 
     force_password_change: userData.forcePasswordChange !== undefined ? userData.forcePasswordChange : false,
@@ -192,9 +192,9 @@ export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'cr
         await addAuditLog({
             adminId: reportingAdmin.id, 
             adminName: reportingAdmin.name, 
-            action: `New user self-registered: ${createdSupabaseUser.username}`,
+            action: `New user self-registered: ${createdSupabaseUser.email}`,
             timestamp: new Date().toISOString(),
-            details: { userId: createdSupabaseUser.id, username: createdSupabaseUser.username, name: createdSupabaseUser.name, contact: createdSupabaseUser.contact }
+            details: { userId: createdSupabaseUser.id, username: createdSupabaseUser.email, name: createdSupabaseUser.name, contact: createdSupabaseUser.contact }
         });
     } catch (auditError: any) {
         console.error("dataService: Failed to add audit log for self-registration:", auditError.message);
@@ -204,7 +204,7 @@ export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'cr
   const appUser: User = {
     id: createdSupabaseUser.id,
     name: createdSupabaseUser.name,
-    username: createdSupabaseUser.username,
+    username: createdSupabaseUser.email, // Map email from DB to username for app
     contact: createdSupabaseUser.contact,
     password: createdSupabaseUser.password, 
     profilePhotoUrl: createdSupabaseUser.profile_photo_url,
@@ -219,32 +219,32 @@ export const updateUser = async (id: string, updates: Partial<User>): Promise<Us
   console.log(`dataService: updateUser called for ID: ${id} with updates:`, JSON.stringify(updates));
   
   if (updates.username) {
-      const { data: userBeforeUpdate, error: fetchError } = await supabase.from('users').select('username').eq('id', id).single();
+      const { data: userBeforeUpdate, error: fetchError } = await supabase.from('users').select('email').eq('id', id).single();
       if (fetchError && fetchError.code !== 'PGRST116') {
-          console.error('dataService: Error fetching current username during update:', fetchError);
+          console.error('dataService: Error fetching current email during update:', fetchError);
           throw new Error(`Failed to fetch current user details: ${fetchError.message}`);
       }
-      if (userBeforeUpdate && updates.username !== userBeforeUpdate.username) {
+      if (userBeforeUpdate && updates.username !== userBeforeUpdate.email) {
         const { data: existingUserWithNewUsername, error: checkError } = await supabase
             .from('users')
             .select('id')
-            .eq('username', updates.username)
+            .eq('email', updates.username) // Check 'email' column
             .neq('id', id) 
             .maybeSingle();
         if (checkError && checkError.code !== 'PGRST116') {
-            console.error('dataService: Error checking username availability during update:', checkError);
-            throw new Error(`Username check failed: ${checkError.message}`);
+            console.error('dataService: Error checking email availability during update:', checkError);
+            throw new Error(`Email check failed: ${checkError.message}`);
         }
         if (existingUserWithNewUsername) {
-            console.warn("dataService: Username already taken (update):", updates.username);
-            throw new Error("Username already taken.");
+            console.warn("dataService: Email already taken (update):", updates.username);
+            throw new Error("Email already taken.");
         }
       }
   }
 
   const updatePayload: Record<string, any> = {};
   if (updates.name !== undefined) updatePayload.name = updates.name;
-  if (updates.username !== undefined) updatePayload.username = updates.username;
+  if (updates.username !== undefined) updatePayload.email = updates.username; // Map username to email
   if (updates.contact !== undefined) updatePayload.contact = updates.contact;
   if (updates.password !== undefined) updatePayload.password = updates.password; 
   if (updates.profilePhotoUrl !== undefined) updatePayload.profile_photo_url = updates.profilePhotoUrl;
@@ -276,7 +276,7 @@ export const updateUser = async (id: string, updates: Partial<User>): Promise<Us
   const appUser: User = {
     id: updatedSupabaseUser.id,
     name: updatedSupabaseUser.name,
-    username: updatedSupabaseUser.username,
+    username: updatedSupabaseUser.email, // Map email from DB to username for app
     contact: updatedSupabaseUser.contact,
     password: updatedSupabaseUser.password, 
     profilePhotoUrl: updatedSupabaseUser.profile_photo_url,
@@ -303,18 +303,18 @@ export const deleteUser = async (id: string): Promise<boolean> => {
 };
 
 export const checkUsernameAvailability = async (username: string): Promise<boolean> => {
-  console.log(`dataService: checkUsernameAvailability called for username: ${username}`);
+  console.log(`dataService: checkUsernameAvailability called for username/email: ${username}`);
   const { count, error } = await supabase
     .from('users')
     .select('id', { count: 'exact', head: true })
-    .eq('username', username);
+    .eq('email', username); // Check against 'email' column
 
   if (error) {
-    console.error('dataService: Error checking username availability:', error.message);
+    console.error('dataService: Error checking email availability:', error.message);
     return false; 
   }
   const isAvailable = count === 0;
-  console.log(`dataService: Username "${username}" availability: ${isAvailable}`);
+  console.log(`dataService: Email "${username}" availability: ${isAvailable}`);
   return isAvailable;
 };
 
@@ -772,3 +772,5 @@ export const subscribeToProfits = (callback: (change: any) => void) => subscribe
 export const subscribeToLoans = (callback: (change: any) => void) => subscribeToTable('loans', callback);
 export const subscribeToAuditLogs = (callback: (change: any) => void) => subscribeToTable('audit_logs', callback);
 export const subscribeToUsers = (callback: (change: any) => void) => subscribeToTable('users', callback);
+
+    

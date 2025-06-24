@@ -10,22 +10,22 @@ import { USER_STORAGE_KEY, ADMIN_STORAGE_KEY } from "./constants";
 // Register User (Custom Logic)
 export const registerUser = async (
   name: string,
-  username: string, // Changed from email
+  username: string, // App-facing, but will be stored in 'email' column
   password: string,
   contact?: string,
   profilePhotoDataUrl?: string // Changed from profilePhotoUrl to accept data URL
 ): Promise<{ user?: User; error?: string }> => {
   try {
-    // Check if username already exists using dataService
-    const existingUser = await supabase.from('users').select('username').eq('username', username).maybeSingle();
+    // Check if email (acting as username) already exists
+    const existingUser = await supabase.from('users').select('email').eq('email', username).maybeSingle();
     if (existingUser.data) {
-      return { error: "Username already exists." };
+      return { error: "An account with this email/username already exists." };
     }
 
     // In a real app, password would be hashed here before storing
     const newUser: Omit<User, 'id' | 'createdAt'> = {
       name,
-      username,
+      username, // Pass username to data service, which will map it to email column
       password: password, // Storing plain text password (MOCK ONLY)
       contact,
       profilePhotoUrl: profilePhotoDataUrl, // Store data URL directly for now
@@ -56,14 +56,14 @@ export const registerUser = async (
 
 // Login User (Custom Logic)
 export const loginUser = async (
-  username: string, // Changed from email
+  username: string, // User enters their email in the username field
   password: string
 ): Promise<{ user?: User; error?: string }> => {
   try {
     const { data: users, error: fetchError } = await supabase
       .from('users')
       .select('*')
-      .eq('username', username);
+      .eq('email', username); // Query against the 'email' column
 
     if (fetchError) {
       console.error("Login fetch error:", fetchError);
@@ -83,7 +83,7 @@ export const loginUser = async (
     const userToStore: User = {
         id: user.id,
         name: user.name,
-        username: user.username,
+        username: user.email, // Map 'email' from DB to 'username' for the app
         contact: user.contact,
         profilePhotoUrl: user.profile_photo_url,
         createdAt: user.created_at,
@@ -141,14 +141,14 @@ export const updateUserInSession = (updatedUser: User): void => {
 
 // Request Password Reset (Custom Logic - Mock)
 export const requestPasswordReset = async (
-  username: string // Changed from email
+  username: string // User enters their email here
 ): Promise<{ success: boolean; message: string }> => {
   // This is a MOCK. In a real app with Supabase Auth, you'd use supabase.auth.resetPasswordForEmail().
   // With custom auth, you'd implement your own token generation and email sending.
-  console.log(`Password reset requested for username: ${username}. (Mock function)`);
-  const msg = `If an account with username ${username} exists, a (mock) reset link would be sent.`;
-  // Simulate checking if user exists
-  const { data: users, error } = await supabase.from('users').select('id').eq('username', username);
+  console.log(`Password reset requested for username/email: ${username}. (Mock function)`);
+  const msg = `If an account with email ${username} exists, a (mock) reset link would be sent.`;
+  // Simulate checking if user exists by querying the email column
+  const { data: users, error } = await supabase.from('users').select('id').eq('email', username);
   if (error) {
     console.error("Error checking user for password reset:", error);
     // Don't reveal if user exists for security, generic message is better
@@ -193,7 +193,7 @@ export const changeUserPassword = async (
 
 // Admin Login (Custom Logic)
 export const loginAdmin = async (
-  adminUsername: string, // Typically username or email
+  adminUsername: string, // This is an email for admins
   password: string
 ): Promise<{ admin?: Admin; error?: string }> => {
   try {
@@ -244,7 +244,7 @@ export const getCurrentAdmin = (): Admin | null => {
 // Complete Initial Setup (Username and Password Change)
 export const completeInitialSetup = async (
   userId: string,
-  newUsername: string,
+  newUsername: string, // This is an email
   newPassword: string
 ): Promise<{ user?: User; error?: string }> => {
   try {
@@ -259,11 +259,11 @@ export const completeInitialSetup = async (
     };
 
     if (newUsername !== currentUser.username) {
-        // Check if new username is taken
+        // Check if new username (email) is taken
         const { data: existingUserWithNewUsername, error: checkError } = await supabase
             .from('users')
             .select('id')
-            .eq('username', newUsername)
+            .eq('email', newUsername) // Query 'email' column
             .neq('id', userId) // Important: Exclude current user from check
             .maybeSingle();
 
@@ -292,3 +292,5 @@ export const completeInitialSetup = async (
     return { error: e.message || "Failed to complete setup." };
   }
 };
+
+    
