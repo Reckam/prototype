@@ -20,6 +20,7 @@ export default function UserProfilePage() {
   const [initialUsername, setInitialUsername] = useState("");
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
+  const [contact, setContact] = useState("");
   const [profilePhotoDataUrl, setProfilePhotoDataUrl] = useState<string | undefined>(undefined); // Store data URL for update
   
   const [currentPassword, setCurrentPassword] = useState("");
@@ -42,6 +43,7 @@ export default function UserProfilePage() {
       setUser(currentUser);
       setName(currentUser.name);
       setUsername(currentUser.username);
+      setContact(currentUser.contact || "");
       setInitialUsername(currentUser.username);
       setProfilePhotoDataUrl(currentUser.profilePhotoUrl); // Keep original URL for AvatarImage
     }
@@ -73,6 +75,7 @@ export default function UserProfilePage() {
         if(user){
             setName(user.name);
             setUsername(user.username);
+            setContact(user.contact || "");
             setProfilePhotoDataUrl(user.profilePhotoUrl); // Reset to original data URL if cancelling
             setUsernameAvailable(null); 
         }
@@ -105,7 +108,7 @@ export default function UserProfilePage() {
     setIsLoadingSaveProfile(true);
     try {
       // Pass profilePhotoDataUrl for update. It might be a new data URL or the original one.
-      const updatedUserData: Partial<User> = { name, username, profilePhotoUrl: profilePhotoDataUrl };
+      const updatedUserData: Partial<User> = { name, username, contact, profilePhotoUrl: profilePhotoDataUrl };
       
       const updatedUserResponse = await updateUserDataService(user.id, updatedUserData);
       if (updatedUserResponse) {
@@ -228,7 +231,7 @@ export default function UserProfilePage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username">Username (Email)</Label>
             <Input
               id="username"
               type="text"
@@ -241,6 +244,18 @@ export default function UserProfilePage() {
             {isEditing && usernameAvailable === true && username !== initialUsername && <p className="text-xs text-green-600">Username available!</p>}
             {isEditing && usernameAvailable === false && username !== initialUsername && <p className="text-xs text-red-600">Username taken.</p>}
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="contact">Contact Number</Label>
+            <Input
+              id="contact"
+              type="tel"
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              disabled={!isEditing || isLoadingSaveProfile}
+              className="text-base"
+              placeholder="Your contact number"
+            />
+          </div>
            <div className="space-y-2">
             <Label htmlFor="joined">Joined On</Label>
             <Input
@@ -252,7 +267,7 @@ export default function UserProfilePage() {
           </div>
           
           {isEditing && (
-            <Button variant="outline" onClick={() => {setIsEditing(false); setName(user.name); setUsername(user.username); setProfilePhotoDataUrl(user.profilePhotoUrl); setUsernameAvailable(null);}}>
+            <Button variant="outline" onClick={() => {setIsEditing(false); setName(user.name); setUsername(user.username); setContact(user.contact || ""); setProfilePhotoDataUrl(user.profilePhotoUrl); setUsernameAvailable(null);}}>
                 Cancel Edit
             </Button>
           )}

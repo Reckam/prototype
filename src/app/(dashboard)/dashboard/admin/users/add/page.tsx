@@ -21,6 +21,7 @@ export default function AddUserPage() {
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
+  const [contact, setContact] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,6 +39,7 @@ export default function AddUserPage() {
       const createdUser = await addDataUser({
         name,
         username,
+        contact,
         profilePhotoUrl: undefined, // No profile photo upload from admin add page for now
       });
 
@@ -91,14 +93,24 @@ export default function AddUserPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username">Username (Email)</Label>
               <Input
                 id="username"
-                type="text" 
-                placeholder="user_jane_doe" 
+                type="email" 
+                placeholder="user_jane_doe@example.com" 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
+              />
+            </div>
+             <div className="space-y-2">
+              <Label htmlFor="contact">Contact Number (Optional)</Label>
+              <Input
+                id="contact"
+                type="tel"
+                placeholder="e.g., 0771234567"
+                value={contact}
+                onChange={(e) => setContact(e.target.value)}
               />
             </div>
             <div className="space-y-2">

@@ -12,6 +12,7 @@ export const registerUser = async (
   name: string,
   username: string, 
   password: string,
+  contact?: string,
   profilePhotoDataUrl?: string
 ): Promise<{ user?: User; error?: string }> => {
   try {
@@ -26,6 +27,7 @@ export const registerUser = async (
       name,
       username,
       password: password, // Storing plain text password (MOCK ONLY)
+      contact,
       profilePhotoUrl: profilePhotoDataUrl,
       forcePasswordChange: false,
     };

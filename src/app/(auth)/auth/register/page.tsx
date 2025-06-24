@@ -20,6 +20,7 @@ export default function UserRegisterPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [contact, setContact] = useState("");
   const [profilePhotoDataUrl, setProfilePhotoDataUrl] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -47,7 +48,7 @@ export default function UserRegisterPage() {
       return;
     }
     setIsLoading(true);
-    const { user, error } = await registerUser(name, username, password, profilePhotoDataUrl);
+    const { user, error } = await registerUser(name, username, password, contact, profilePhotoDataUrl);
     setIsLoading(false);
 
     if (user) {
@@ -85,14 +86,24 @@ export default function UserRegisterPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username">Username (Email)</Label>
             <Input
               id="username"
-              type="text"
-              placeholder="your_username"
+              type="email"
+              placeholder="your_email@example.com"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
+            />
+          </div>
+           <div className="space-y-2">
+            <Label htmlFor="contact">Contact Number (Optional)</Label>
+            <Input
+              id="contact"
+              type="tel"
+              placeholder="e.g., 0771234567"
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
             />
           </div>
           <div className="space-y-2">

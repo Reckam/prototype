@@ -1,6 +1,7 @@
+
 export interface User {
   id: string;
-  username: string; // Changed from email to username
+  username: string; // Stored as 'email' in Supabase
   name: string;
   contact?: string; // Added for contact number
   createdAt: string;
@@ -38,7 +39,7 @@ export interface LoanRequest {
   userId: string;
   userName?: string; // For admin view
   amount: number;
-  reason?: string; // Made optional as it might not exist in the DB
+  reason?: string; 
   status: LoanStatus;
   requestedAt: string;
   reviewedAt?: string;

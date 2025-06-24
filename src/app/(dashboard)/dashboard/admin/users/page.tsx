@@ -222,6 +222,7 @@ export default function ManageUsersPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Username</TableHead>
+                  <TableHead>Contact</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead className="text-right">Total Savings</TableHead>
                   <TableHead className="text-right">Total Profits</TableHead>
@@ -234,6 +235,7 @@ export default function ManageUsersPage() {
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.username}</TableCell>
+                    <TableCell>{user.contact || 'N/A'}</TableCell>
                     <TableCell>{format(new Date(user.createdAt), "PP")}</TableCell>
                     <TableCell className="text-right">{formatCurrency(user.totalSavings)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(user.totalProfits)}</TableCell>
