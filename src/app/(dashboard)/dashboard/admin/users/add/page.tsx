@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { addUser as addDataUser } from "@/lib/dataService"; 
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, ArrowLeft, Phone } from "lucide-react";
+import { UserPlus, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
@@ -21,8 +21,6 @@ export default function AddUserPage() {
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
-  const [contact, setContact] = useState("");
-  // Password is now fixed to "1234" by dataService for admin-created users
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,11 +38,8 @@ export default function AddUserPage() {
       const createdUser = await addDataUser({
         name,
         username,
-        contact: contact || undefined, // Pass contact, ensure it's optional
         profilePhotoUrl: undefined, // No profile photo upload from admin add page for now
       });
-      // Log this action - Handled within addDataUser or should be if needed based on design
-      // await addAuditLog({ adminId: admin.id, adminName: admin.name, action: `Added new user: ${username}`, timestamp: new Date().toISOString() });
 
       toast({
         title: "User Added",
@@ -105,20 +100,6 @@ export default function AddUserPage() {
                 onChange={(e) => setUsername(e.target.value)}
                 required
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contact">Contact (Phone Number - Optional)</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    id="contact"
-                    type="tel"
-                    placeholder="07XX XXX XXX"
-                    value={contact}
-                    onChange={(e) => setContact(e.target.value)}
-                    className="pl-10"
-                />
-              </div>
             </div>
             <div className="space-y-2">
                 <Label>Default Password</Label>

@@ -1,7 +1,7 @@
 
 "use client";
-import { supabase } from "@/supabaseClient"; // Corrected import path
-import type { User as SupabaseUserType } from "@supabase/supabase-js"; // Renamed to avoid conflict with local User type
+import { supabase } from "@/supabaseClient";
+import type { User as SupabaseUserType } from "@supabase/supabase-js";
 import { getAdmins, addAuditLog, createUserFromRegistration as createDataUser, getUserById as getDataUserById, updateUser as updateDataUser } from "./dataService";
 import type { User, Admin } from "@/types"; // Local User type
 import { USER_STORAGE_KEY, ADMIN_STORAGE_KEY } from "./constants";
@@ -10,26 +10,24 @@ import { USER_STORAGE_KEY, ADMIN_STORAGE_KEY } from "./constants";
 // Register User (Custom Logic)
 export const registerUser = async (
   name: string,
-  username: string, // App-facing, but will be stored in 'email' column
+  username: string, 
   password: string,
-  contact?: string,
-  profilePhotoDataUrl?: string // Changed from profilePhotoUrl to accept data URL
+  profilePhotoDataUrl?: string
 ): Promise<{ user?: User; error?: string }> => {
   try {
     // Check if email (acting as username) already exists
-    const existingUser = await supabase.from('users').select('email').eq('email', username).maybeSingle();
-    if (existingUser.data) {
+    const { data: existingUser } = await supabase.from('users').select('email').eq('email', username).maybeSingle();
+    if (existingUser) {
       return { error: "An account with this email/username already exists." };
     }
 
     // In a real app, password would be hashed here before storing
     const newUser: Omit<User, 'id' | 'createdAt'> = {
       name,
-      username, // Pass username to data service, which will map it to email column
+      username,
       password: password, // Storing plain text password (MOCK ONLY)
-      contact,
-      profilePhotoUrl: profilePhotoDataUrl, // Store data URL directly for now
-      forcePasswordChange: false, // Or true if you want them to change it after this "registration"
+      profilePhotoUrl: profilePhotoDataUrl,
+      forcePasswordChange: false,
     };
 
     const createdUser = await createDataUser(newUser);
@@ -43,7 +41,7 @@ export const registerUser = async (
         adminName: admin.name,
         action: `New user registered: ${username}`,
         timestamp: new Date().toISOString(),
-        details: { username, name, contact },
+        details: { username, name },
       });
     }
 
@@ -292,5 +290,3 @@ export const completeInitialSetup = async (
     return { error: e.message || "Failed to complete setup." };
   }
 };
-
-    

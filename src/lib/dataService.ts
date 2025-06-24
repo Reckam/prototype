@@ -76,7 +76,7 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
   return mappedUser;
 };
 
-export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profilePhotoUrl' | 'contact'>): Promise<User> => {
+export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profilePhotoUrl'>): Promise<User> => {
   console.log("dataService: addUser (admin action) called with userStub:", userStub);
   
   const { data: existingUser, error: checkError } = await supabase.from('users').select('id').eq('email', userStub.username).maybeSingle();
@@ -92,7 +92,6 @@ export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profil
   const newUserPayload = {
     name: userStub.name,
     email: userStub.username, // Map app's 'username' to DB's 'email' column
-    contact: userStub.contact,
     password: "1234", 
     force_password_change: true,
     profile_photo_url: userStub.profilePhotoUrl,
@@ -162,7 +161,6 @@ export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'cr
   const newUserPayload = {
     name: userData.name,
     email: userData.username, // Map app's 'username' to DB's 'email' column
-    contact: userData.contact,
     password: userData.password, 
     force_password_change: userData.forcePasswordChange !== undefined ? userData.forcePasswordChange : false,
     profile_photo_url: userData.profilePhotoUrl,
@@ -245,7 +243,6 @@ export const updateUser = async (id: string, updates: Partial<User>): Promise<Us
   const updatePayload: Record<string, any> = {};
   if (updates.name !== undefined) updatePayload.name = updates.name;
   if (updates.username !== undefined) updatePayload.email = updates.username; // Map username to email
-  if (updates.contact !== undefined) updatePayload.contact = updates.contact;
   if (updates.password !== undefined) updatePayload.password = updates.password; 
   if (updates.profilePhotoUrl !== undefined) updatePayload.profile_photo_url = updates.profilePhotoUrl;
   if (updates.forcePasswordChange !== undefined) updatePayload.force_password_change = updates.forcePasswordChange;
@@ -772,5 +769,3 @@ export const subscribeToProfits = (callback: (change: any) => void) => subscribe
 export const subscribeToLoans = (callback: (change: any) => void) => subscribeToTable('loans', callback);
 export const subscribeToAuditLogs = (callback: (change: any) => void) => subscribeToTable('audit_logs', callback);
 export const subscribeToUsers = (callback: (change: any) => void) => subscribeToTable('users', callback);
-
-    

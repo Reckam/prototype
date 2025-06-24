@@ -8,9 +8,8 @@ import { Label } from "@/components/ui/label";
 import { registerUser } from "@/lib/authService";
 import { APP_NAME } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Phone } from "lucide-react"; // Camera icon removed
+import { UserPlus } from "lucide-react";
 import Link from "next/link";
-// Image import removed
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 
@@ -21,8 +20,7 @@ export default function UserRegisterPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [contact, setContact] = useState("");
-  const [profilePhotoDataUrl, setProfilePhotoDataUrl] = useState<string | undefined>(undefined); // Changed to store Data URL
+  const [profilePhotoDataUrl, setProfilePhotoDataUrl] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,8 +47,7 @@ export default function UserRegisterPage() {
       return;
     }
     setIsLoading(true);
-    // Pass profilePhotoDataUrl instead of profilePhotoPreview
-    const { user, error } = await registerUser(name, username, password, contact, profilePhotoDataUrl);
+    const { user, error } = await registerUser(name, username, password, profilePhotoDataUrl);
     setIsLoading(false);
 
     if (user) {
@@ -99,21 +96,6 @@ export default function UserRegisterPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="contact">Contact (Phone Number)</Label>
-            <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                id="contact"
-                type="tel"
-                placeholder="07XX XXX XXX"
-                value={contact}
-                onChange={(e) => setContact(e.target.value)}
-                required
-                className="pl-10"
-                />
-            </div>
-          </div>
-          <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <Input
               id="password"
@@ -144,7 +126,6 @@ export default function UserRegisterPage() {
               onChange={handlePhotoChange}
               className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
             />
-             {/* Image preview and fallback Camera icon div removed */}
           </div>
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? "Registering..." : "Register"}

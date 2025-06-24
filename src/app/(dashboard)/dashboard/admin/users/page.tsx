@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { getUsers, deleteUser as deleteDataUser, updateUserSavings, getSavingsByUserId, getProfitsByUserId, getLoansByUserId, addAuditLog, subscribeToUsers } from "@/lib/dataService";
 import { useToast } from "@/hooks/use-toast";
 import type { User, SavingTransaction, ProfitEntry, LoanRequest, Admin } from "@/types";
-import { Users, PlusCircle, Edit, Trash2, Eye, RefreshCw, Phone } from "lucide-react";
+import { Users, PlusCircle, Edit, Trash2, Eye, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react"; // Import useRef
 import { format } from "date-fns";
@@ -166,8 +166,7 @@ export default function ManageUsersPage() {
 
   const filteredUsers = users.filter(user =>
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.contact && user.contact.toLowerCase().includes(searchTerm.toLowerCase()))
+    user.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const formatCurrency = (amount: number) => {
@@ -223,7 +222,6 @@ export default function ManageUsersPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Username</TableHead>
-                  <TableHead>Contact</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead className="text-right">Total Savings</TableHead>
                   <TableHead className="text-right">Total Profits</TableHead>
@@ -236,7 +234,6 @@ export default function ManageUsersPage() {
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.username}</TableCell>
-                    <TableCell>{user.contact || 'N/A'}</TableCell>
                     <TableCell>{format(new Date(user.createdAt), "PP")}</TableCell>
                     <TableCell className="text-right">{formatCurrency(user.totalSavings)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(user.totalProfits)}</TableCell>
@@ -304,4 +301,3 @@ export default function ManageUsersPage() {
     </DashboardLayout>
   );
 }
-
