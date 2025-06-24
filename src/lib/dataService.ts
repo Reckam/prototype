@@ -95,8 +95,7 @@ export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'profil
     contact: userStub.contact,
     password: "1234", 
     force_password_change: true,
-    profile_photo_url: userStub.profilePhotoUrl, 
-    created_at: new Date().toISOString(),
+    profile_photo_url: userStub.profilePhotoUrl,
   };
   console.log("dataService: addUser - inserting payload:", newUserPayload);
 
@@ -167,7 +166,6 @@ export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'cr
     password: userData.password, 
     force_password_change: userData.forcePasswordChange !== undefined ? userData.forcePasswordChange : false,
     profile_photo_url: userData.profilePhotoUrl,
-    created_at: new Date().toISOString(),
   };
   console.log("dataService: createUserFromRegistration - inserting payload:", newUserPayload);
 
@@ -543,9 +541,9 @@ export const getAllLoans = async (): Promise<LoanRequest[]> => {
       status,
       requested_at,
       reviewed_at,
+      reason,
       users ( name ) 
     `) 
-    // Removed 'reason' from select as it might not exist
     .order('requested_at', { ascending: false });
 
   if (error) {
@@ -557,7 +555,7 @@ export const getAllLoans = async (): Promise<LoanRequest[]> => {
     userId: loan.user_id,
     userName: (loan as any).users?.name || `User ID: ${loan.user_id}`, 
     amount: loan.amount,
-    reason: (loan as any).reason, // Will be undefined if not selected or doesn't exist; type is reason?
+    reason: (loan as any).reason, 
     status: loan.status,
     requestedAt: loan.requested_at,
     reviewedAt: loan.reviewed_at,
@@ -570,14 +568,13 @@ export const addLoanRequest = async (request: Omit<LoanRequest, 'id' | 'status' 
   console.log("dataService: addLoanRequest called for user ID:", request.userId, "Amount:", request.amount);
   const user = await getUserById(request.userId); 
   
-  const payload: any = { // Use 'any' temporarily for conditional property
+  const payload: any = { 
     user_id: request.userId,
     amount: request.amount,
     status: 'pending' as LoanStatus,
     requested_at: new Date().toISOString(),
   };
 
-  // Only include reason in the payload if it's provided
   if (request.reason) {
     payload.reason = request.reason;
   }
@@ -591,10 +588,8 @@ export const addLoanRequest = async (request: Omit<LoanRequest, 'id' | 'status' 
 
   if (error) {
     console.error('dataService: Error adding loan request:', error);
-    // More specific error for missing column
     if (error.message.includes("column") && error.message.includes("does not exist") && payload.reason) {
         console.error("dataService: It seems the 'reason' column does not exist in the 'loans' table. Loan reason was not saved.");
-        // Optionally, re-try insert without reason, or inform user. For now, let error propagate.
         throw new Error(`Failed to add loan request: ${error.message}. The 'reason' field might be missing in your database 'loans' table.`);
     }
     throw new Error(error.message || "Failed to add loan request.");
