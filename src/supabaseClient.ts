@@ -1,13 +1,12 @@
 // src/supabaseClient.ts
 import { createClient } from '@supabase/supabase-js';
 
-// TODO: Replace with your actual Supabase project URL and anon key
-// You can find these in your Supabase project settings under "API"
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'YOUR_SUPABASE_URL';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
-
-if (!supabaseUrl || supabaseUrl === 'YOUR_SUPABASE_URL' || !supabaseAnonKey || supabaseAnonKey === 'YOUR_SUPABASE_ANON_KEY') {
-    console.warn("Supabase URL or anon key is not set. Please update src/supabaseClient.ts");
-}
+// --- WARNING ---
+// The key below appears to be a 'service_role' key. This key bypasses all
+// Row Level Security policies and should NEVER be exposed in a client-side
+// application. For production, you MUST replace it with your public 'anon' key
+// from your Supabase project's API settings.
+const supabaseUrl = "https://svbdauqvxytghskgzlkk.supabase.co";
+const supabaseAnonKey = "sbp_40be5c22f73bfb20102676c3bccdc74feb192115";
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
