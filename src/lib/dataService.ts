@@ -1,182 +1,150 @@
-
 'use client';
 
 import type { User, Admin, SavingTransaction, ProfitEntry, LoanRequest, AuditLogEntry, LoanStatus } from '@/types';
-import { db } from './firebaseConfig';
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  writeBatch,
-  orderBy,
-  limit,
-  Timestamp,
-  documentId,
-} from 'firebase/firestore';
-
-// Helper to convert Firestore doc to our type, handling Timestamps
-const fromDoc = <T extends { id: string }>(doc: any): T => {
-  const data = doc.data();
-  // Firestore timestamps need to be converted to ISO strings for date-fns compatibility
-  const convertedData = Object.keys(data).reduce((acc, key) => {
-    if (data[key] instanceof Timestamp) {
-      acc[key] = data[key].toDate().toISOString();
-    } else {
-      acc[key] = data[key];
-    }
-    return acc;
-  }, {} as any);
-
-  return { id: doc.id, ...convertedData } as T;
-};
-
+import { supabase } from '@/supabaseClient';
 
 // --- User Operations ---
 export const getUsers = async (): Promise<User[]> => {
-  const usersCol = collection(db, 'users');
-  const userSnapshot = await getDocs(usersCol);
+  const { data, error } = await supabase.from('users').select('*').order('createdAt', { ascending: false });
+  if (error) {
+    console.error('dataService: Error fetching users:', error.message);
+    throw new Error(`Failed to fetch users: ${error.message}`);
+  }
   // Exclude password when getting all users
-  return userSnapshot.docs.map(doc => {
-    const { password, ...userWithoutPassword } = fromDoc<User>(doc);
+  return (data || []).map(user => {
+    const { password, ...userWithoutPassword } = user;
     return userWithoutPassword as User;
   });
 };
 
 export const getUserById = async (id: string): Promise<User | undefined> => {
-  const userDocRef = doc(db, 'users', id);
-  const userSnap = await getDoc(userDocRef);
-  if (!userSnap.exists()) {
-    return undefined;
+  const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
+  if (error && error.code !== 'PGRST116') { // PGRST116: "The result contains 0 rows"
+    console.error('dataService: Error fetching user by ID:', error.message);
+    throw new Error(`Failed to fetch user by ID: ${error.message}`);
   }
-  return fromDoc<User>(userSnap);
+  return data || undefined;
 };
 
-// This function is for authService to get user with password
 export const getUserByUsername = async (username: string): Promise<User | undefined> => {
-  const q = query(collection(db, 'users'), where('username', '==', username), limit(1));
-  const querySnapshot = await getDocs(q);
-  if (querySnapshot.empty) {
-    return undefined;
+  const { data, error } = await supabase.from('users').select('*').eq('username', username).single();
+  if (error && error.code !== 'PGRST116') {
+    console.error('dataService: Error fetching user by username:', error.message);
+    throw new Error(`Failed to fetch user by username: ${error.message}`);
   }
-  return fromDoc<User>(querySnapshot.docs[0]);
+  return data || undefined;
 }
 
 export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'contact' | 'profilePhotoUrl'>): Promise<User> => {
   if (!(await checkUsernameAvailability(userStub.username))) {
     throw new Error("User with this username already exists.");
   }
-
-  const newUserPayload: Omit<User, 'id'> = {
+  
+  // Supabase will handle createdAt with a default value
+  const newUserPayload: Omit<User, 'id' | 'createdAt'> = {
     ...userStub,
     password: "1234",
     forcePasswordChange: true,
-    createdAt: new Date().toISOString(),
   };
 
-  const dataToAdd = { ...newUserPayload, createdAt: new Date(newUserPayload.createdAt) };
-  
-  if (dataToAdd.profilePhotoUrl === undefined) {
-    delete (dataToAdd as any).profilePhotoUrl;
-  }
-  if (dataToAdd.contact === undefined) {
-    delete (dataToAdd as any).contact;
-  }
+  const { data, error } = await supabase.from('users').insert([newUserPayload]).select().single();
 
-
-  const userCol = collection(db, 'users');
-  const docRef = await addDoc(userCol, dataToAdd);
-  
-  return { ...newUserPayload, id: docRef.id, password: "1234" };
+  if (error) {
+    console.error('dataService: Error adding user:', error.message);
+    throw new Error(`Failed to add user: ${error.message}`);
+  }
+  return data as User;
 };
 
 export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'createdAt'>): Promise<User> => {
     if (!(await checkUsernameAvailability(userData.username))) {
         throw new Error("User with this username already exists.");
     }
-    const newUserPayload = {
-      ...userData,
-      createdAt: new Date(),
-    };
-
-    const dataToAdd = { ...newUserPayload };
-
-    if (dataToAdd.profilePhotoUrl === undefined) {
-        delete (dataToAdd as any).profilePhotoUrl;
-    }
-     if (dataToAdd.contact === undefined) {
-      delete (dataToAdd as any).contact;
-    }
     
-    const docRef = await addDoc(collection(db, 'users'), dataToAdd);
-    return { ...userData, id: docRef.id, createdAt: newUserPayload.createdAt.toISOString() };
+    // createdAt will be handled by Supabase default
+    const { createdAt, ...payload } = userData;
+    
+    const { data, error } = await supabase.from('users').insert([payload]).select().single();
+    
+    if (error) {
+      console.error('dataService: Error creating user from registration:', error.message);
+      throw new Error(`Failed to create user: ${error.message}`);
+    }
+    return data as User;
 };
 
 export const updateUser = async (id: string, updates: Partial<User>): Promise<User | undefined> => {
-  const userDocRef = doc(db, 'users', id);
-  await updateDoc(userDocRef, updates);
-  const updatedUser = await getUserById(id);
-  // Ensure we don't return password
-  if (updatedUser) {
-    const { password, ...userToReturn } = updatedUser;
-    return userToReturn as User;
+  const { data, error } = await supabase.from('users').update(updates).eq('id', id).select().single();
+  if (error) {
+    console.error('dataService: Error updating user:', error.message);
+    throw new Error(`Failed to update user: ${error.message}`);
   }
-  return undefined;
+  const { password, ...userToReturn } = data;
+  return userToReturn as User;
 };
 
 export const deleteUser = async (id: string): Promise<boolean> => {
-  const batch = writeBatch(db);
-  
-  const userDocRef = doc(db, 'users', id);
-  batch.delete(userDocRef);
-  
-  const savingsQuery = query(collection(db, 'savings'), where('userId', '==', id));
-  const savingsSnapshot = await getDocs(savingsQuery);
-  savingsSnapshot.forEach(doc => batch.delete(doc.ref));
+    // In a real app with proper foreign key constraints and cascades,
+    // deleting the user would handle this. For this setup, we delete manually.
+    const tables = ['savings', 'profits', 'loans'];
+    for (const table of tables) {
+        const { error } = await supabase.from(table).delete().eq('userId', id);
+        if (error) {
+            console.error(`Error deleting from ${table} for user ${id}:`, error.message);
+            throw new Error(`Failed to delete user's related data in ${table}: ${error.message}`);
+        }
+    }
 
-  const profitsQuery = query(collection(db, 'profits'), where('userId', '==', id));
-  const profitsSnapshot = await getDocs(profitsQuery);
-  profitsSnapshot.forEach(doc => batch.delete(doc.ref));
+    const { error: userError } = await supabase.from('users').delete().eq('id', id);
+    if (userError) {
+        console.error(`Error deleting user ${id}:`, userError.message);
+        throw new Error(`Failed to delete user: ${userError.message}`);
+    }
 
-  const loansQuery = query(collection(db, 'loans'), where('userId', '==', id));
-  const loansSnapshot = await getDocs(loansQuery);
-  loansSnapshot.forEach(doc => batch.delete(doc.ref));
-
-  await batch.commit();
-  return true;
+    return true;
 };
 
 export const checkUsernameAvailability = async (username: string): Promise<boolean> => {
-  const q = query(collection(db, 'users'), where('username', '==', username));
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.empty;
+  const { data, error } = await supabase.from('users').select('id').eq('username', username).limit(1);
+  if (error) {
+    console.error('dataService: Error checking username:', error.message);
+    throw new Error(`Failed to check username: ${error.message}`);
+  }
+  return data.length === 0;
 };
+
 
 // --- Savings Operations ---
 export const getAllSavings = async (since?: Date): Promise<SavingTransaction[]> => {
-  const savingsCol = collection(db, 'savings');
-  const q = since 
-    ? query(savingsCol, where('date', '>=', since), orderBy('date', 'desc'))
-    : query(savingsCol, orderBy('date', 'desc'));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => fromDoc<SavingTransaction>(doc));
+  let query = supabase.from('savings').select('*').order('date', { ascending: false });
+  if (since) {
+    query = query.gte('date', since.toISOString());
+  }
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('dataService: Error fetching all savings:', error.message);
+    throw new Error(`Failed to fetch all savings: ${error.message}`);
+  }
+  return data || [];
 };
 
 export const getSavingsByUserId = async (userId: string): Promise<SavingTransaction[]> => {
-  const q = query(collection(db, 'savings'), where('userId', '==', userId), orderBy('date', 'desc'));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => fromDoc<SavingTransaction>(doc));
+  const { data, error } = await supabase.from('savings').select('*').eq('userId', userId).order('date', { ascending: false });
+  if (error) {
+    console.error(`dataService: Error fetching savings for user ${userId}:`, error.message);
+    throw new Error(`Failed to fetch savings for user: ${error.message}`);
+  }
+  return data || [];
 };
 
 export const addSavingTransaction = async (transaction: Omit<SavingTransaction, 'id'>): Promise<SavingTransaction> => {
-  const payload = { ...transaction, date: new Date(transaction.date) };
-  const docRef = await addDoc(collection(db, 'savings'), payload);
-  return { ...transaction, id: docRef.id };
+  const { data, error } = await supabase.from('savings').insert([transaction]).select().single();
+  if (error) {
+    console.error('dataService: Error adding saving transaction:', error.message);
+    throw new Error(`Failed to add saving transaction: ${error.message}`);
+  }
+  return data as SavingTransaction;
 };
 
 export const updateUserSavings = async (userId: string, newTotalSavingsAmount: number, date: string, adminId: string, adminName?: string): Promise<SavingTransaction | undefined> => {
@@ -205,109 +173,122 @@ export const updateUserSavings = async (userId: string, newTotalSavingsAmount: n
     return addedTransaction;
 }
 
-
 // --- Profits Operations ---
 export const getAllProfits = async (since?: Date): Promise<ProfitEntry[]> => {
-  const profitsCol = collection(db, 'profits');
-    const q = since
-    ? query(profitsCol, where('date', '>=', since), orderBy('date', 'desc'))
-    : query(profitsCol, orderBy('date', 'desc'));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => fromDoc<ProfitEntry>(doc));
+  let query = supabase.from('profits').select('*').order('date', { ascending: false });
+  if (since) {
+    query = query.gte('date', since.toISOString());
+  }
+  const { data, error } = await query;
+  if (error) {
+    console.error('dataService: Error fetching all profits:', error.message);
+    throw new Error(`Failed to fetch all profits: ${error.message}`);
+  }
+  return data || [];
 };
 
 export const getProfitsByUserId = async (userId: string): Promise<ProfitEntry[]> => {
-    const q = query(collection(db, 'profits'), where('userId', '==', userId), orderBy('date', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => fromDoc<ProfitEntry>(doc));
+    const { data, error } = await supabase.from('profits').select('*').eq('userId', userId).order('date', { ascending: false });
+    if (error) {
+      console.error(`dataService: Error fetching profits for user ${userId}:`, error.message);
+      throw new Error(`Failed to fetch profits: ${error.message}`);
+    }
+    return data || [];
 };
 
 export const addProfitEntry = async (profitEntry: Omit<ProfitEntry, 'id'>): Promise<ProfitEntry> => {
-    const payload = { ...profitEntry, date: new Date(profitEntry.date) };
-    const docRef = await addDoc(collection(db, 'profits'), payload);
-    return { ...profitEntry, id: docRef.id };
+    const { data, error } = await supabase.from('profits').insert([profitEntry]).select().single();
+    if (error) {
+      console.error('dataService: Error adding profit entry:', error.message);
+      throw new Error(`Failed to add profit entry: ${error.message}`);
+    }
+    return data as ProfitEntry;
 };
-
 
 // --- Loan Operations ---
 export const getLoansByUserId = async (userId: string): Promise<LoanRequest[]> => {
-    const q = query(collection(db, 'loans'), where('userId', '==', userId), orderBy('requestedAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => fromDoc<LoanRequest>(doc));
+    const { data, error } = await supabase.from('loans').select('*').eq('userId', userId).order('requestedAt', { ascending: false });
+    if (error) {
+      console.error(`dataService: Error fetching loans for user ${userId}:`, error.message);
+      throw new Error(`Failed to fetch loans for user: ${error.message}`);
+    }
+    return data || [];
 };
 
 export const getAllLoans = async (): Promise<LoanRequest[]> => {
-    const loansCol = collection(db, 'loans');
-    const q = query(loansCol, orderBy('requestedAt', 'desc'));
-    const loansSnapshot = await getDocs(q);
-    const loans = loansSnapshot.docs.map(doc => fromDoc<LoanRequest>(doc));
-
-    // Efficiently fetch user names
-    const userIds = [...new Set(loans.map(loan => loan.userId))];
-
-    if (userIds.length === 0) {
-        return loans.map(l => ({ ...l, userName: 'Unknown User' }));
+    // Supabase can do joins, which is much more efficient than the Firestore version
+    const { data, error } = await supabase
+      .from('loans')
+      .select(`
+        id,
+        userId,
+        amount,
+        reason,
+        status,
+        requestedAt,
+        reviewedAt,
+        user:users (
+          name
+        )
+      `)
+      .order('requestedAt', { ascending: false });
+      
+    if (error) {
+      console.error('dataService: Error fetching all loans:', error.message);
+      throw new Error(`Failed to fetch all loans: ${error.message}`);
     }
 
-    const usersData: { [id: string]: string } = {};
-    const userIdChunks = [];
-    // Firestore 'in' query supports up to 30 elements
-    for (let i = 0; i < userIds.length; i += 30) {
-        userIdChunks.push(userIds.slice(i, i + 30));
-    }
-
-    await Promise.all(userIdChunks.map(async chunk => {
-        const usersQuery = query(collection(db, 'users'), where(documentId(), 'in', chunk));
-        const usersSnapshot = await getDocs(usersQuery);
-        usersSnapshot.forEach(doc => {
-            usersData[doc.id] = doc.data().name || 'Unknown User';
-        });
+    const mappedLoans = (data || []).map(loan => ({
+      ...loan,
+      userName: (loan.user as any)?.name || 'Unknown User',
     }));
 
-    const loansWithUserNames = loans.map(loan => ({
-        ...loan,
-        userName: usersData[loan.userId] || 'Unknown User',
-    }));
-    
-    return loansWithUserNames;
+    return mappedLoans;
 };
-
 
 export const addLoanRequest = async (request: Omit<LoanRequest, 'id' | 'status' | 'requestedAt' | 'userName' | 'reviewedAt'>): Promise<LoanRequest> => {
     const newRequestPayload = {
       ...request,
       status: 'pending' as LoanStatus,
-      requestedAt: new Date(),
-      reviewedAt: null,
+      // requestedAt will be set by the database default
     };
-    const docRef = await addDoc(collection(db, 'loans'), newRequestPayload);
-    return { ...request, status: 'pending', id: docRef.id, requestedAt: newRequestPayload.requestedAt.toISOString() };
+
+    const { data, error } = await supabase.from('loans').insert([newRequestPayload]).select().single();
+    if (error) {
+      console.error('dataService: Error adding loan request:', error.message);
+      throw new Error(`Failed to add loan request: ${error.message}`);
+    }
+    return data as LoanRequest;
 };
 
 export const updateLoanStatus = async (loanId: string, status: LoanStatus, adminId: string): Promise<LoanRequest | undefined> => {
-    const loanDocRef = doc(db, 'loans', loanId);
-    const reviewedAtDate = new Date();
-    await updateDoc(loanDocRef, {
+    const { data, error } = await supabase.from('loans').update({
         status: status,
-        reviewedAt: reviewedAtDate,
-    });
-    
-    const updatedLoanSnap = await getDoc(loanDocRef);
-    if (!updatedLoanSnap.exists()) return undefined;
-    
-    return fromDoc<LoanRequest>(updatedLoanSnap);
-};
+        reviewedAt: new Date().toISOString(),
+    }).eq('id', loanId).select().single();
 
+    if (error) {
+      console.error('dataService: Error updating loan status:', error.message);
+      throw new Error(`Failed to update loan status: ${error.message}`);
+    }
+    return data as LoanRequest;
+};
 
 // --- Audit Log Operations ---
 export const getAuditLogs = async (): Promise<AuditLogEntry[]> => {
-    const q = query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(100));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => fromDoc<AuditLogEntry>(doc));
+    const { data, error } = await supabase.from('auditLogs').select('*').order('timestamp', { ascending: false }).limit(100);
+    if (error) {
+      console.error('dataService: Error fetching audit logs:', error.message);
+      throw new Error(`Failed to fetch audit logs: ${error.message}`);
+    }
+    return data || [];
 };
 
 export const addAuditLog = async (logEntry: Omit<AuditLogEntry, 'id'>): Promise<AuditLogEntry> => {
-    const payload = { ...logEntry, timestamp: new Date(logEntry.timestamp) };
-    const docRef = await addDoc(collection(db, 'auditLogs'), payload);
-    return { ...logEntry, id: docRef.id };
+    const { data, error } = await supabase.from('auditLogs').insert([logEntry]).select().single();
+    if (error) {
+      console.error('dataService: Error adding audit log:', error.message);
+      throw new Error(`Failed to add audit log: ${error.message}`);
+    }
+    return data as AuditLogEntry;
 };
