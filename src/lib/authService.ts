@@ -2,7 +2,13 @@
 "use client";
 import type { User, Admin } from "@/types";
 import { USER_STORAGE_KEY, ADMIN_STORAGE_KEY } from "./constants";
-import { getUsers, createUserFromRegistration, updateUser, checkUsernameAvailability as checkUsernameAvailabilityDataService, getUserById } from "./dataService";
+import { 
+    createUserFromRegistration, 
+    updateUser as updateUserDataService, 
+    checkUsernameAvailability as checkUsernameAvailabilityDataService, 
+    getUserById, 
+    getUserByUsername 
+} from "./dataService";
 
 export const registerUser = async (
   name: string,
@@ -11,14 +17,13 @@ export const registerUser = async (
   contact?: string,
   profilePhotoDataUrl?: string
 ): Promise<{ user?: User; error?: string }> => {
-  console.log("LOCAL AUTH: registerUser called");
   try {
     const newUser = await createUserFromRegistration({
       name,
       username,
       password,
       contact,
-      profilePhotoUrl,
+      profilePhotoUrl: profilePhotoDataUrl,
       forcePasswordChange: false,
     });
     const { password: _, ...userToReturn } = newUser;
@@ -32,20 +37,23 @@ export const loginUser = async (
   username: string,
   password: string
 ): Promise<{ user?: User; error?:string }> => {
-  console.log("LOCAL AUTH: loginUser called for username:", username);
-  const users = await getUsers();
-  const user = users.find(u => u.username === username);
+  try {
+    const user = await getUserByUsername(username);
 
-  if (!user || user.password !== password) {
-    return { error: "Invalid username or password." };
+    if (!user || user.password !== password) {
+      return { error: "Invalid username or password." };
+    }
+
+    const { password: _, ...userToStore } = user;
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userToStore));
+    }
+    return { user: userToStore as User };
+  } catch (error: any) {
+      console.error("Login error:", error);
+      return { error: "An error occurred during login." };
   }
-
-  const { password: _, ...userToStore } = user;
-
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userToStore));
-  }
-  return { user: userToStore as User };
 };
 
 export const logoutUser = (): void => {
@@ -83,8 +91,8 @@ export const updateUserInSession = (updatedUser: User): void => {
 export const requestPasswordReset = async (
   username: string
 ): Promise<{ success: boolean; message: string }> => {
-  console.log(`LOCAL AUTH: Password reset requested for username: ${username}.`);
-  const msg = `If a local account with username ${username} exists, a (mock) reset link would be sent.`;
+  console.log(`Password reset requested for username: ${username}. This is a mock function.`);
+  const msg = `If an account with username ${username} exists, a (mock) reset link would be sent.`;
   return { success: true, message: msg };
 };
 
@@ -93,7 +101,6 @@ export const changeUserPassword = async (
   currentPasswordAttempt: string,
   newPassword: string
 ): Promise<{ success: boolean; message:string }> => {
-  console.log(`LOCAL AUTH: changeUserPassword called for userId: ${userId}`);
   const user = await getUserById(userId);
   
   if (!user) {
@@ -104,12 +111,12 @@ export const changeUserPassword = async (
       return { success: false, message: "Current password incorrect." };
   }
   
-  await updateUser(userId, { password: newPassword });
-  console.log(`LOCAL AUTH: Password for ${user.username} updated.`);
+  await updateUserDataService(userId, { password: newPassword });
 
   return { success: true, message: "Password updated successfully." };
 };
 
+// Admin auth is still local/mock and doesn't hit the DB, so it's unchanged.
 export const loginAdmin = async (
   adminUsername: string,
   password: string
@@ -152,7 +159,6 @@ export const completeInitialSetup = async (
   newUsername: string,
   newPassword: string
 ): Promise<{ user?: User; error?: string }> => {
-  console.log(`LOCAL AUTH: completeInitialSetup for userId: ${userId}`);
   const user = await getUserById(userId);
   if (!user) {
       return { error: "User not found." };
@@ -171,7 +177,7 @@ export const completeInitialSetup = async (
       updates.username = newUsername;
   }
   
-  const updatedUser = await updateUser(userId, updates);
+  const updatedUser = await updateUserDataService(userId, updates);
 
   if (updatedUser) {
       const { password: _, ...userToReturn } = updatedUser;

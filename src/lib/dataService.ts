@@ -1,274 +1,257 @@
 
 'use client';
 
-import type { User, Admin, SavingTransaction, ProfitEntry, LoanRequest, AuditLogEntry, LoanStatus, AppData } from '@/types';
+import type { User, Admin, SavingTransaction, ProfitEntry, LoanRequest, AuditLogEntry, LoanStatus } from '@/types';
+import { db } from './firebaseConfig';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  writeBatch,
+  orderBy,
+  limit,
+  Timestamp,
+} from 'firebase/firestore';
 
-const APP_DATA_KEY = 'savings_central_app_data';
-
-const getInitialData = (): AppData => ({
-  users: [
-    { id: 'mock-user-1', name: 'Default User', username: 'user', password: 'password', contact: '0770123456', profilePhotoUrl: undefined, createdAt: new Date().toISOString(), forcePasswordChange: false }
-  ],
-  admins: [
-    { id: 'mock-admin-1', name: 'Super Admin', username: 'admin' }
-  ],
-  savings: [],
-  profits: [],
-  loans: [],
-  auditLogs: [],
-});
-
-const getMockData = (): AppData => {
-  if (typeof window === 'undefined') {
-    return getInitialData();
-  }
-  try {
-    const data = localStorage.getItem(APP_DATA_KEY);
-    if (data) {
-      return JSON.parse(data);
+// Helper to convert Firestore doc to our type, handling Timestamps
+const fromDoc = <T extends { id: string }>(doc: any): T => {
+  const data = doc.data();
+  // Firestore timestamps need to be converted to ISO strings for date-fns compatibility
+  const convertedData = Object.keys(data).reduce((acc, key) => {
+    if (data[key] instanceof Timestamp) {
+      acc[key] = data[key].toDate().toISOString();
     } else {
-      const initialData = getInitialData();
-      localStorage.setItem(APP_DATA_KEY, JSON.stringify(initialData));
-      return initialData;
+      acc[key] = data[key];
     }
-  } catch (error) {
-    console.error("Error accessing localStorage:", error);
-    return getInitialData();
-  }
+    return acc;
+  }, {} as any);
+
+  return { id: doc.id, ...convertedData } as T;
 };
 
-const setMockData = (data: AppData): void => {
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem(APP_DATA_KEY, JSON.stringify(data));
-    } catch (error) {
-      console.error("Error writing to localStorage:", error);
-    }
-  }
-};
-
-// --- Admin Operations ---
-export const getAdmins = async (): Promise<Admin[]> => {
-  const data = getMockData();
-  return data.admins;
-};
 
 // --- User Operations ---
 export const getUsers = async (): Promise<User[]> => {
-  const data = getMockData();
-  return data.users;
+  const usersCol = collection(db, 'users');
+  const userSnapshot = await getDocs(usersCol);
+  // Exclude password when getting all users
+  return userSnapshot.docs.map(doc => {
+    const { password, ...userWithoutPassword } = fromDoc<User>(doc);
+    return userWithoutPassword;
+  });
 };
 
 export const getUserById = async (id: string): Promise<User | undefined> => {
-  const data = getMockData();
-  return data.users.find(u => u.id === id);
+  const userDocRef = doc(db, 'users', id);
+  const userSnap = await getDoc(userDocRef);
+  if (!userSnap.exists()) {
+    return undefined;
+  }
+  return fromDoc<User>(userSnap);
 };
 
+// This function is for authService to get user with password
+export const getUserByUsername = async (username: string): Promise<User | undefined> => {
+  const q = query(collection(db, 'users'), where('username', '==', username), limit(1));
+  const querySnapshot = await getDocs(q);
+  if (querySnapshot.empty) {
+    return undefined;
+  }
+  return fromDoc<User>(querySnapshot.docs[0]);
+}
+
 export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'contact' | 'profilePhotoUrl'>): Promise<User> => {
-  const data = getMockData();
-  if (data.users.some(u => u.username === userStub.username)) {
+  if (!(await checkUsernameAvailability(userStub.username))) {
     throw new Error("User with this username already exists.");
   }
-  const newUser: User = {
-    id: `user-${Date.now()}`,
-    createdAt: new Date().toISOString(),
+
+  const newUserPayload = {
+    ...userStub,
     password: "1234",
     forcePasswordChange: true,
-    ...userStub,
+    createdAt: new Date(),
   };
-  data.users.push(newUser);
-  
-  const admin = data.admins[0];
-  if(admin) {
-      const newLog: Omit<AuditLogEntry, 'id'> = {
-        adminId: admin.id,
-        adminName: admin.name,
-        action: `Created user: ${userStub.name}`,
-        timestamp: new Date().toISOString(),
-        details: { userId: newUser.id, username: newUser.username },
-      };
-      data.auditLogs.unshift({ ...newLog, id: `log-${Date.now()}` });
-  }
 
-  setMockData(data);
-  return newUser;
+  const userCol = collection(db, 'users');
+  const docRef = await addDoc(userCol, newUserPayload);
+  
+  return { ...userStub, id: docRef.id, createdAt: newUserPayload.createdAt.toISOString(), forcePasswordChange: true, password: "1234" };
 };
 
 export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'createdAt'>): Promise<User> => {
-    const data = getMockData();
-    if (data.users.some(u => u.username === userData.username)) {
+    if (!(await checkUsernameAvailability(userData.username))) {
         throw new Error("User with this username already exists.");
     }
-    const newUser: User = {
-        id: `user-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        ...userData,
+    const newUserPayload = {
+      ...userData,
+      createdAt: new Date(),
     };
-    data.users.push(newUser);
-    setMockData(data);
-    return newUser;
+    const docRef = await addDoc(collection(db, 'users'), newUserPayload);
+    return { ...userData, id: docRef.id, createdAt: newUserPayload.createdAt.toISOString() };
 };
 
 export const updateUser = async (id: string, updates: Partial<User>): Promise<User | undefined> => {
-  const data = getMockData();
-  const userIndex = data.users.findIndex(u => u.id === id);
-  if (userIndex === -1) {
-    throw new Error("User not found for update.");
+  const userDocRef = doc(db, 'users', id);
+  await updateDoc(userDocRef, updates);
+  const updatedUser = await getUserById(id);
+  // Ensure we don't return password
+  if (updatedUser) {
+    const { password, ...userToReturn } = updatedUser;
+    return userToReturn;
   }
-  data.users[userIndex] = { ...data.users[userIndex], ...updates };
-  setMockData(data);
-  return data.users[userIndex];
+  return undefined;
 };
 
 export const deleteUser = async (id: string): Promise<boolean> => {
-  const data = getMockData();
-  const initialLength = data.users.length;
-  data.users = data.users.filter(u => u.id !== id);
-  data.savings = data.savings.filter(s => s.userId !== id);
-  data.profits = data.profits.filter(p => p.userId !== id);
-  data.loans = data.loans.filter(l => l.userId !== id);
+  const batch = writeBatch(db);
+  
+  const userDocRef = doc(db, 'users', id);
+  batch.delete(userDocRef);
+  
+  const savingsQuery = query(collection(db, 'savings'), where('userId', '==', id));
+  const savingsSnapshot = await getDocs(savingsQuery);
+  savingsSnapshot.forEach(doc => batch.delete(doc.ref));
 
-  setMockData(data);
-  return data.users.length < initialLength;
+  const profitsQuery = query(collection(db, 'profits'), where('userId', '==', id));
+  const profitsSnapshot = await getDocs(profitsQuery);
+  profitsSnapshot.forEach(doc => batch.delete(doc.ref));
+
+  const loansQuery = query(collection(db, 'loans'), where('userId', '==', id));
+  const loansSnapshot = await getDocs(loansQuery);
+  loansSnapshot.forEach(doc => batch.delete(doc.ref));
+
+  await batch.commit();
+  return true;
 };
 
 export const checkUsernameAvailability = async (username: string): Promise<boolean> => {
-  const data = getMockData();
-  return !data.users.some(u => u.username === username);
+  const q = query(collection(db, 'users'), where('username', '==', username));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.empty;
 };
 
 // --- Savings Operations ---
 export const getSavingsByUserId = async (userId: string): Promise<SavingTransaction[]> => {
-  const data = getMockData();
-  return data.savings.filter(s => s.userId === userId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const q = query(collection(db, 'savings'), where('userId', '==', userId), orderBy('date', 'desc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => fromDoc<SavingTransaction>(doc));
 };
 
 export const addSavingTransaction = async (transaction: Omit<SavingTransaction, 'id'>): Promise<SavingTransaction> => {
-  const data = getMockData();
-  const newTransaction: SavingTransaction = {
-    id: `saving-${Date.now()}`,
-    ...transaction,
-  };
-  data.savings.push(newTransaction);
-  setMockData(data);
-  return newTransaction;
+  const payload = { ...transaction, date: new Date(transaction.date) };
+  const docRef = await addDoc(collection(db, 'savings'), payload);
+  return { ...transaction, id: docRef.id };
 };
 
-export const updateUserSavings = async (userId: string, newTotalSavingsAmount: number, date: string, adminId: string, adminName: string): Promise<SavingTransaction | undefined> => {
-    const data = getMockData();
-    const userSavings = data.savings.filter(s => s.userId === userId);
+export const updateUserSavings = async (userId: string, newTotalSavingsAmount: number, date: string, adminId: string, adminName?: string): Promise<SavingTransaction | undefined> => {
+    const userSavings = await getSavingsByUserId(userId);
     const currentTotal = userSavings.reduce((acc, s) => acc + (s.type === 'deposit' ? s.amount : -s.amount), 0);
     const adjustmentAmount = newTotalSavingsAmount - currentTotal;
 
     if (Math.abs(adjustmentAmount) < 0.01) return undefined;
 
-    const newTransaction: SavingTransaction = {
-        id: `saving-${Date.now()}`,
+    const newTransaction: Omit<SavingTransaction, 'id'> = {
         userId,
         amount: Math.abs(adjustmentAmount),
-        date,
+        date: new Date(date).toISOString(),
         type: adjustmentAmount > 0 ? 'deposit' : 'withdrawal',
     };
-    data.savings.push(newTransaction);
+    const addedTransaction = await addSavingTransaction(newTransaction);
     
-    const user = data.users.find(u => u.id === userId);
-    const newLog: Omit<AuditLogEntry, 'id'> = {
+    await addAuditLog({
         adminId,
         adminName,
-        action: `Adjusted savings for ${user?.name || userId}`,
+        action: `Adjusted savings for user ID ${userId}`,
         timestamp: new Date().toISOString(),
         details: { userId, adjustment: adjustmentAmount },
-    };
-    data.auditLogs.unshift({ ...newLog, id: `log-${Date.now() + 1}` });
+    });
 
-    setMockData(data);
-    return newTransaction;
+    return addedTransaction;
 }
+
 
 // --- Profits Operations ---
 export const getProfitsByUserId = async (userId: string): Promise<ProfitEntry[]> => {
-    const data = getMockData();
-    return data.profits.filter(p => p.userId === userId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const q = query(collection(db, 'profits'), where('userId', '==', userId), orderBy('date', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => fromDoc<ProfitEntry>(doc));
 };
 
 export const addProfitEntry = async (profitEntry: Omit<ProfitEntry, 'id'>): Promise<ProfitEntry> => {
-    const data = getMockData();
-    const newEntry: ProfitEntry = {
-        id: `profit-${Date.now()}`,
-        ...profitEntry,
-    };
-    data.profits.push(newEntry);
-    setMockData(data);
-    return newEntry;
+    const payload = { ...profitEntry, date: new Date(profitEntry.date) };
+    const docRef = await addDoc(collection(db, 'profits'), payload);
+    return { ...profitEntry, id: docRef.id };
 };
+
 
 // --- Loan Operations ---
 export const getLoansByUserId = async (userId: string): Promise<LoanRequest[]> => {
-    const data = getMockData();
-    return data.loans.filter(l => l.userId === userId).sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime());
+    const q = query(collection(db, 'loans'), where('userId', '==', userId), orderBy('requestedAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => fromDoc<LoanRequest>(doc));
 };
 
 export const getAllLoans = async (): Promise<LoanRequest[]> => {
-    const data = getMockData();
-    return data.loans.map(loan => {
-        const user = data.users.find(u => u.id === loan.userId);
-        return {
-            ...loan,
-            userName: user?.name || 'Unknown User',
-        };
-    }).sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime());
+    const loansCol = collection(db, 'loans');
+    const q = query(loansCol, orderBy('requestedAt', 'desc'));
+    const loansSnapshot = await getDocs(q);
+    
+    const loansWithUserNames = await Promise.all(
+        loansSnapshot.docs.map(async (loanDoc) => {
+            const loan = fromDoc<LoanRequest>(loanDoc);
+            // Fetch user, but only necessary fields to avoid sending password to client
+            const userSnap = await getDoc(doc(db, 'users', loan.userId));
+            const userName = userSnap.exists() ? userSnap.data().name : 'Unknown User';
+            return {
+                ...loan,
+                userName,
+            };
+        })
+    );
+    return loansWithUserNames;
 };
 
 export const addLoanRequest = async (request: Omit<LoanRequest, 'id' | 'status' | 'requestedAt' | 'userName' | 'reviewedAt'>): Promise<LoanRequest> => {
-    const data = getMockData();
-    const newRequest: LoanRequest = {
-        id: `loan-${Date.now()}`,
-        status: 'pending',
-        requestedAt: new Date().toISOString(),
-        ...request,
+    const newRequestPayload = {
+      ...request,
+      status: 'pending' as LoanStatus,
+      requestedAt: new Date(),
+      reviewedAt: null,
     };
-    data.loans.push(newRequest);
-    setMockData(data);
-    return newRequest;
+    const docRef = await addDoc(collection(db, 'loans'), newRequestPayload);
+    return { ...request, status: 'pending', id: docRef.id, requestedAt: newRequestPayload.requestedAt.toISOString() };
 };
 
 export const updateLoanStatus = async (loanId: string, status: LoanStatus, adminId: string): Promise<LoanRequest | undefined> => {
-    const data = getMockData();
-    const loanIndex = data.loans.findIndex(l => l.id === loanId);
-    if (loanIndex === -1) {
-        throw new Error("Loan not found for update.");
-    }
-    data.loans[loanIndex].status = status;
-    data.loans[loanIndex].reviewedAt = new Date().toISOString();
+    const loanDocRef = doc(db, 'loans', loanId);
+    const reviewedAtDate = new Date();
+    await updateDoc(loanDocRef, {
+        status: status,
+        reviewedAt: reviewedAtDate,
+    });
     
-    const admin = data.admins.find(a => a.id === adminId);
-    const user = data.users.find(u => u.id === data.loans[loanIndex].userId);
-    const newLog: Omit<AuditLogEntry, 'id'> = {
-        adminId,
-        adminName: admin?.name,
-        action: `Updated loan for ${user?.name || 'Unknown'} to ${status}`,
-        timestamp: new Date().toISOString(),
-        details: { loanId, newStatus: status },
-    };
-    data.auditLogs.unshift({ ...newLog, id: `log-${Date.now() + 2}` });
-
-    setMockData(data);
-    return data.loans[loanIndex];
+    const updatedLoanSnap = await getDoc(loanDocRef);
+    if (!updatedLoanSnap.exists()) return undefined;
+    
+    return fromDoc<LoanRequest>(updatedLoanSnap);
 };
+
 
 // --- Audit Log Operations ---
 export const getAuditLogs = async (): Promise<AuditLogEntry[]> => {
-    const data = getMockData();
-    return data.auditLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const q = query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(100));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => fromDoc<AuditLogEntry>(doc));
 };
 
 export const addAuditLog = async (logEntry: Omit<AuditLogEntry, 'id'>): Promise<AuditLogEntry> => {
-    const data = getMockData();
-    const newLog: AuditLogEntry = {
-        id: `log-${Date.now()}`,
-        ...logEntry,
-    };
-    data.auditLogs.unshift(newLog); // Add to the top
-    setMockData(data);
-    return newLog;
+    const payload = { ...logEntry, timestamp: new Date(logEntry.timestamp) };
+    const docRef = await addDoc(collection(db, 'auditLogs'), payload);
+    return { ...logEntry, id: docRef.id };
 };
