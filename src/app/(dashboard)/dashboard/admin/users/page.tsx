@@ -8,13 +8,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-// Import subscribeToUsers
-import { getUsers, deleteUser as deleteDataUser, updateUserSavings, getSavingsByUserId, getProfitsByUserId, getLoansByUserId, addAuditLog, subscribeToUsers } from "@/lib/dataService";
+import { getUsers, deleteUser as deleteDataUser, updateUserSavings, getSavingsByUserId, getProfitsByUserId, getLoansByUserId, addAuditLog } from "@/lib/dataService";
 import { useToast } from "@/hooks/use-toast";
-import type { User, SavingTransaction, ProfitEntry, LoanRequest, Admin } from "@/types";
-import { Users, PlusCircle, Edit, Trash2, Eye, RefreshCw } from "lucide-react";
+import type { User, Admin } from "@/types";
+import { Users, PlusCircle, Edit, Trash2, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState, useRef } from "react"; // Import useRef
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { getCurrentAdmin } from "@/lib/authService";
 
@@ -33,53 +32,13 @@ export default function ManageUsersPage() {
   const [admin, setAdmin] = useState<Admin | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Create a ref to hold the unsubscribe function
-  const usersSubscriptionRef = useRef<() => void | null>(null);
-
-
   const { toast } = useToast();
 
   useEffect(() => {
     const currentAdmin = getCurrentAdmin();
     setAdmin(currentAdmin);
     fetchUsers();
-
-    // Set up the real-time subscription after initial fetch
-    const usersChannel = subscribeToUsers((payload) => {
-      console.log('Real-time user change:', payload);
-
-      // Handle different event types
-      if (payload.eventType === 'INSERT') {
-        // For a new user, we don't have the calculated fields yet.
-        // We can either re-fetch all users, or add a partial user and re-fetch in the background.
-        // Re-fetching all users is simpler for now.
-        toast({ title: "New User Added", description: `User ${payload.new.name || payload.new.username} was added.` });
-         fetchUsers();
-
-      } else if (payload.eventType === 'DELETE') {
-        // When a user is deleted, re-fetch the list to update the calculated fields correctly.
-        toast({ title: "User Deleted", description: `User with ID ${payload.old.id} was deleted.` });
-        fetchUsers();
-
-      } else if (payload.eventType === 'UPDATE') {
-        // When a user is updated, re-fetch the list to update calculated fields like total savings if needed.
-        toast({ title: "User Updated", description: `User with ID ${payload.new.id} was updated.` });
-        fetchUsers();
-      }
-    });
-
-    // Store the unsubscribe function in the ref
-    usersSubscriptionRef.current = () => usersChannel.unsubscribe();
-
-    // Cleanup function: unsubscribe when the component unmounts
-    return () => {
-      console.log('Unsubscribing from users channel');
-      if (usersSubscriptionRef.current) {
-        usersSubscriptionRef.current();
-      }
-    };
-
-  }, []); // Empty dependency array ensures this effect runs only once on mount
+  }, []);
 
 
   const fetchUsers = async () => {
@@ -88,14 +47,12 @@ export default function ManageUsersPage() {
       const basicUsers = await getUsers();
       const usersWithDetails = await Promise.all(
         basicUsers.map(async (user) => {
-          // It's more efficient to fetch savings, profits, and loans only when needed (e.g., viewing details)
-          // But for displaying totals in the list, we fetch them here.
           const [savings, profits, loans] = await Promise.all([
             getSavingsByUserId(user.id),
             getProfitsByUserId(user.id),
             getLoansByUserId(user.id),
           ]);
-          const totalSavings = savings.filter(s => s.type === 'deposit').reduce((acc, s) => acc + s.amount, 0) - savings.filter(s => s.type === 'withdrawal').reduce((acc, s) => acc + s.amount, 0);
+          const totalSavings = savings.reduce((acc, s) => acc + (s.type === 'deposit' ? s.amount : -s.amount), 0);
           const totalProfits = profits.reduce((acc, p) => acc + p.amount, 0);
           const activeLoans = loans.filter(l => l.status === 'pending' || l.status === 'approved').length;
           return { ...user, totalSavings, totalProfits, activeLoans };
@@ -119,7 +76,6 @@ export default function ManageUsersPage() {
     if (confirmed) {
       try {
         await deleteDataUser(userId);
-        // Real-time subscription will handle the UI update, but we'll still log.
         await addAuditLog({
             adminId: admin.id,
             adminName: admin.name,
@@ -127,8 +83,8 @@ export default function ManageUsersPage() {
             timestamp: new Date().toISOString(),
             details: { userId, userName }
         });
-        toast({ title: "User Deletion Initiated", description: `Attempting to delete user ${userName}. The list will update shortly.` });
-        // No need to call fetchUsers() here, the real-time update will handle it
+        toast({ title: "User Deleted", description: `User ${userName} has been deleted.` });
+        fetchUsers();
       } catch (error) {
         console.error("Failed to delete user:", error);
         toast({ variant: "destructive", title: "Deletion Failed", description: "Could not delete the user." });
@@ -154,10 +110,10 @@ export default function ManageUsersPage() {
 
     try {
       await updateUserSavings(selectedUserForEdit.id, amount, new Date().toISOString(), admin.id, admin.name);
-      toast({ title: "Savings Update Initiated", description: `Attempting to update savings for ${selectedUserForEdit.name}. The list will update shortly.` });
+      toast({ title: "Savings Updated", description: `Savings for ${selectedUserForEdit.name} have been updated.` });
       setSelectedUserForEdit(null);
       setNewSavingsAmount("");
-       // No need to call fetchUsers() here, the real-time update will handle it
+      fetchUsers();
     } catch (error) {
       console.error("Failed to update savings:", error);
       toast({ variant: "destructive", title: "Update Failed", description: "Could not update savings." });
@@ -197,7 +153,6 @@ export default function ManageUsersPage() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          {/* Keep refresh button for manual refresh if needed */}
           <Button variant="outline" size="icon" onClick={fetchUsers} className="mr-2 shrink-0">
             <RefreshCw className="h-4 w-4" />
             <span className="sr-only">Refresh Users</span>
@@ -243,7 +198,7 @@ export default function ManageUsersPage() {
                     <TableCell className="text-right space-x-1">
                        <Dialog>
                         <DialogTrigger asChild>
-                           <Button variant="outline" size="sm" onClick={() => handleEditSavings(user)}> {/* Changed to size sm */}
+                           <Button variant="outline" size="sm" onClick={() => handleEditSavings(user)}>
                             <Edit className="mr-1 h-3 w-3" /> Edit Savings
                           </Button>
                         </DialogTrigger>

@@ -2,14 +2,13 @@
 "use client";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; // Added CardDescription
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-// Import necessary functions from dataService and authService
-import { getSavingsByUserId, subscribeToSavings } from "@/lib/dataService";
+import { getSavingsByUserId } from "@/lib/dataService";
 import { getCurrentUser } from "@/lib/authService";
 import type { SavingTransaction, User } from "@/types";
-import { useEffect, useState, useRef } from "react"; // Import useRef
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { DollarSign } from "lucide-react";
 
@@ -19,39 +18,12 @@ export default function UserSavingsPage() {
   const [user, setUser] = useState<User | null>(null);
   const { toast } = useToast();
 
-  // Create a ref to hold the unsubscribe function
-  const savingsSubscriptionRef = useRef<() => void | null>(null);
-
 
   useEffect(() => {
     const currentUser = getCurrentUser();
     if (currentUser) {
       setUser(currentUser);
-      fetchSavings(currentUser.id); // Fetch initial savings
-
-      // Set up the real-time subscription after initial fetch
-      const savingsChannel = subscribeToSavings((payload) => {
-        console.log('Real-time savings change:', payload);
-
-        // Since savings are specific to the user, we filter by user_id
-        if (payload.new?.user_id === currentUser.id || payload.old?.user_id === currentUser.id) {
-          console.log("Relevant savings change for current user, refetching...");
-          // Re-fetch savings when a change occurs for the current user
-          fetchSavings(currentUser.id);
-        }
-      });
-
-      // Store the unsubscribe function in the ref
-      savingsSubscriptionRef.current = () => savingsChannel.unsubscribe();
-
-      // Cleanup function: unsubscribe when the component unmounts
-      return () => {
-        console.log('Unsubscribing from savings channel');
-        if (savingsSubscriptionRef.current) {
-          savingsSubscriptionRef.current();
-        }
-      };
-
+      fetchSavings(currentUser.id);
     } else {
       setIsLoading(false);
       toast({
@@ -59,9 +31,8 @@ export default function UserSavingsPage() {
         title: "Authentication Error",
         description: "User not logged in.",
       });
-      // Redirect to login or handle authentication error
     }
-  }, []); // Empty dependency array ensures this effect runs only once on mount
+  }, []);
 
 
   const fetchSavings = async (userId: string) => {
@@ -120,7 +91,6 @@ export default function UserSavingsPage() {
         <h1 className="text-2xl font-semibold flex items-center">
           <DollarSign className="mr-3 h-6 w-6 text-primary" /> My Savings
         </h1>
-        {/* Optional: Add a button to trigger adding a new saving transaction if applicable */}
       </div>
 
        <div className="mb-6">
@@ -162,7 +132,7 @@ export default function UserSavingsPage() {
             </Table>
           ) : (
              <div className="text-center py-8">
-                <DollarSign className="mx-auto h-12 w-12 text-muted-foreground mb-4" /> {/* Added icon for empty state */}
+                <DollarSign className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">No savings transactions found.</p>
             </div>
           )}

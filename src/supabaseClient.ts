@@ -1,7 +1,5 @@
-// src/supabaseClient.ts
-import { createClient } from '@supabase/supabase-js'
+// This file is intentionally left blank as Supabase is no longer used for data storage.
+// The application now uses a local-only data service that interacts with the browser's localStorage.
 
-const supabaseUrl = 'https://svbdauqvxytghskgzlkk.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2YmRhdXF2eHl0Z2hza2d6bGtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3MTExNjYsImV4cCI6MjA2NDI4NzE2Nn0.DDGkw1LfzOVX772-5tordvT0x7UX8U4cSZrPPPzrbYk'
-
-export const supabase = createClient(supabaseUrl, supabaseKey)
+// Setting supabase to null to ensure any accidental imports fail loudly.
+export const supabase = null;

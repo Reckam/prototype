@@ -4,11 +4,10 @@
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-// Import subscribeToAuditLogs
-import { getAuditLogs, subscribeToAuditLogs } from "@/lib/dataService";
+import { getAuditLogs } from "@/lib/dataService";
 import type { AuditLogEntry } from "@/types";
 import { FileClock, RefreshCw } from "lucide-react";
-import { useEffect, useState, useRef } from "react"; // Import useRef
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,39 +17,9 @@ export default function AuditLogPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Create a ref to hold the unsubscribe function
-  const auditLogsSubscriptionRef = useRef<() => void | null>(null);
-
-
   useEffect(() => {
     fetchLogs();
-
-    // Set up the real-time subscription after initial fetch
-    const auditLogsChannel = subscribeToAuditLogs((payload) => {
-      console.log('Real-time audit log change:', payload);
-
-      if (payload.eventType === 'INSERT') {
-        // Add the new log entry to the top of the list
-        setLogs((prevLogs) => [payload.new, ...prevLogs]);
-      } else if (payload.eventType === 'UPDATE' || payload.eventType === 'DELETE') {
-        // For updates or deletes, re-fetch the entire list to maintain order and consistency
-         fetchLogs();
-      }
-    });
-
-    // Store the unsubscribe function in the ref
-    auditLogsSubscriptionRef.current = () => auditLogsChannel.unsubscribe();
-
-
-    // Cleanup function: unsubscribe when the component unmounts
-    return () => {
-      console.log('Unsubscribing from audit logs channel');
-      if (auditLogsSubscriptionRef.current) {
-        auditLogsSubscriptionRef.current();
-      }
-    };
-
-  }, []); // Empty dependency array ensures this effect runs only once on mount
+  }, []);
 
 
   const fetchLogs = async () => {
@@ -60,7 +29,6 @@ export default function AuditLogPage() {
       setLogs(auditLogs);
     } catch (error) {
       console.error("Failed to fetch audit logs:", error);
-      // Consider adding a toast message for the user
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +65,6 @@ export default function AuditLogPage() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          {/* Keep refresh button for manual refresh if needed */}
           <Button variant="outline" size="icon" onClick={fetchLogs} aria-label="Refresh logs">
             <RefreshCw className="h-4 w-4" />
           </Button>
