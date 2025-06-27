@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { getCurrentAdmin } from "@/lib/authService";
 import type { Admin, AuditLogEntry } from "@/types";
 import { getAllLoans, getAuditLogs, getUsers, getAllSavings, getAllProfits } from "@/lib/dataService"; 
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO, subDays } from "date-fns";
 
 export default function AdminDashboardPage() {
   const [admin, setAdmin] = useState<Admin | null>(null);
@@ -36,19 +36,22 @@ export default function AdminDashboardPage() {
   const fetchAdminDashboardData = async () => {
     setIsLoading(true);
     try {
-      const [users, loans, logs, allSavings, allProfits] = await Promise.all([
+      const now = new Date();
+      // Fetch data from the last 90 days for performance
+      const dateLimit = subDays(now, 90);
+
+      const [users, loans, logs, recentSavings, recentProfits] = await Promise.all([
         getUsers(),
         getAllLoans(),
         getAuditLogs(),
-        getAllSavings(),
-        getAllProfits(),
+        getAllSavings(dateLimit), // Fetch only recent savings
+        getAllProfits(dateLimit), // Fetch only recent profits
       ]);
 
       setTotalUsers(users.length);
       setPendingLoansCount(loans.filter(loan => loan.status === 'pending').length);
       setRecentLogs(logs.slice(0, 5));
       
-      const now = new Date();
       const weekStart = startOfWeek(now);
       const weekEnd = endOfWeek(now);
       const monthStart = startOfMonth(now);
@@ -58,7 +61,7 @@ export default function AdminDashboardPage() {
       let weeklySavings = 0;
       let monthlySavings = 0;
 
-      for (const s of allSavings) {
+      for (const s of recentSavings) {
         const transactionDate = parseISO(s.date);
         const amount = s.type === 'deposit' ? s.amount : -s.amount;
         systemSavings += amount;
@@ -70,7 +73,7 @@ export default function AdminDashboardPage() {
         }
       }
       
-      const systemProfits = allProfits.reduce((acc, curr) => acc + curr.amount, 0);
+      const systemProfits = recentProfits.reduce((acc, curr) => acc + curr.amount, 0);
 
       setTotalSystemSavings(systemSavings);
       setTotalWeeklySavings(weeklySavings);
@@ -133,22 +136,22 @@ export default function AdminDashboardPage() {
         </Card>
          <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total System Savings</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Savings (Last 90 Days)</CardTitle>
             <PiggyBank className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(totalSystemSavings)}</div>
-            <p className="text-xs text-muted-foreground">Current total savings across all users</p>
+            <p className="text-xs text-muted-foreground">Net savings over the last 90 days</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total System Profits</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Profits (Last 90 Days)</CardTitle>
             <TrendingUp className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(totalSystemProfits)}</div>
-            <p className="text-xs text-muted-foreground">Total profits generated</p>
+            <p className="text-xs text-muted-foreground">Profits generated in the last 90 days</p>
           </CardContent>
         </Card>
         <Card>

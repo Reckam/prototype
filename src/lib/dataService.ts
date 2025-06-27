@@ -44,7 +44,7 @@ export const getUsers = async (): Promise<User[]> => {
   // Exclude password when getting all users
   return userSnapshot.docs.map(doc => {
     const { password, ...userWithoutPassword } = fromDoc<User>(doc);
-    return userWithoutPassword;
+    return userWithoutPassword as User;
   });
 };
 
@@ -79,20 +79,18 @@ export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'contac
     createdAt: new Date().toISOString(),
   };
 
-  // Firestore doesn't accept `undefined` values.
-  if (newUserPayload.profilePhotoUrl === undefined) {
-    delete (newUserPayload as { profilePhotoUrl?: string }).profilePhotoUrl;
+  const dataToAdd = { ...newUserPayload, createdAt: new Date(newUserPayload.createdAt) };
+  
+  if (dataToAdd.profilePhotoUrl === undefined) {
+    delete (dataToAdd as any).profilePhotoUrl;
   }
-  if (newUserPayload.contact === undefined) {
-    delete (newUserPayload as { contact?: string }).contact;
+  if (dataToAdd.contact === undefined) {
+    delete (dataToAdd as any).contact;
   }
 
 
   const userCol = collection(db, 'users');
-  const docRef = await addDoc(userCol, {
-    ...newUserPayload,
-    createdAt: new Date(newUserPayload.createdAt),
-  });
+  const docRef = await addDoc(userCol, dataToAdd);
   
   return { ...newUserPayload, id: docRef.id, password: "1234" };
 };
@@ -106,15 +104,16 @@ export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'cr
       createdAt: new Date(),
     };
 
-    // Firestore doesn't accept `undefined` values.
-    if (newUserPayload.profilePhotoUrl === undefined) {
-        delete (newUserPayload as { profilePhotoUrl?: string }).profilePhotoUrl;
+    const dataToAdd = { ...newUserPayload };
+
+    if (dataToAdd.profilePhotoUrl === undefined) {
+        delete (dataToAdd as any).profilePhotoUrl;
     }
-     if (newUserPayload.contact === undefined) {
-      delete (newUserPayload as { contact?: string }).contact;
+     if (dataToAdd.contact === undefined) {
+      delete (dataToAdd as any).contact;
     }
     
-    const docRef = await addDoc(collection(db, 'users'), newUserPayload);
+    const docRef = await addDoc(collection(db, 'users'), dataToAdd);
     return { ...userData, id: docRef.id, createdAt: newUserPayload.createdAt.toISOString() };
 };
 
@@ -125,7 +124,7 @@ export const updateUser = async (id: string, updates: Partial<User>): Promise<Us
   // Ensure we don't return password
   if (updatedUser) {
     const { password, ...userToReturn } = updatedUser;
-    return userToReturn;
+    return userToReturn as User;
   }
   return undefined;
 };
@@ -159,9 +158,12 @@ export const checkUsernameAvailability = async (username: string): Promise<boole
 };
 
 // --- Savings Operations ---
-export const getAllSavings = async (): Promise<SavingTransaction[]> => {
+export const getAllSavings = async (since?: Date): Promise<SavingTransaction[]> => {
   const savingsCol = collection(db, 'savings');
-  const snapshot = await getDocs(savingsCol);
+  const q = since 
+    ? query(savingsCol, where('date', '>=', since), orderBy('date', 'desc'))
+    : query(savingsCol, orderBy('date', 'desc'));
+  const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => fromDoc<SavingTransaction>(doc));
 };
 
@@ -205,9 +207,12 @@ export const updateUserSavings = async (userId: string, newTotalSavingsAmount: n
 
 
 // --- Profits Operations ---
-export const getAllProfits = async (): Promise<ProfitEntry[]> => {
+export const getAllProfits = async (since?: Date): Promise<ProfitEntry[]> => {
   const profitsCol = collection(db, 'profits');
-  const snapshot = await getDocs(profitsCol);
+    const q = since
+    ? query(profitsCol, where('date', '>=', since), orderBy('date', 'desc'))
+    : query(profitsCol, orderBy('date', 'desc'));
+  const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => fromDoc<ProfitEntry>(doc));
 };
 

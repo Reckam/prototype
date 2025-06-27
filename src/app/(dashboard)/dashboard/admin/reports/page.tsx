@@ -35,21 +35,39 @@ export default function AdminReportsPage() {
   const fetchReportData = async () => {
     setIsLoading(true);
     try {
+      // Fetch all data in parallel for efficiency
       const [users, loans, allSavings, allProfits] = await Promise.all([
         getUsers(),
         getAllLoans(),
-        getAllSavings(),
-        getAllProfits(),
+        getAllSavings(), // Fetching all savings
+        getAllProfits(), // Fetching all profits
       ]);
 
       const totalSavings = allSavings.reduce((sum, s) => sum + (s.type === 'deposit' ? s.amount : -s.amount), 0);
       const totalProfits = allProfits.reduce((sum, p) => sum + p.amount, 0);
       
-      // Mock savings over time (last 6 months)
-      const savingsOverTimeMock = Array(6).fill(0).map((_, i) => {
+      // Process savings data to create a monthly trend
+      const savingsByMonth: { [key: string]: number } = {};
+      const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short' });
+
+      for (const s of allSavings) {
+          const date = new Date(s.date);
+          const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+          if (!savingsByMonth[monthKey]) {
+              savingsByMonth[monthKey] = 0;
+          }
+          savingsByMonth[monthKey] += s.type === 'deposit' ? s.amount : -s.amount;
+      }
+
+      // Get the last 6 months for the chart
+      const savingsOverTime = Array.from({ length: 6 }, (_, i) => {
           const d = new Date();
           d.setMonth(d.getMonth() - i);
-          return { month: d.toLocaleString('default', { month: 'short' }), amount: Math.floor(Math.random() * 15000000) + 3000000 }; // UGX amounts
+          const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
+          return {
+              month: monthFormatter.format(d),
+              amount: savingsByMonth[monthKey] || 0
+          };
       }).reverse();
 
 
@@ -64,7 +82,7 @@ export default function AdminReportsPage() {
           approved: loans.filter(l => l.status === 'approved').length,
           rejected: loans.filter(l => l.status === 'rejected').length,
         },
-        savingsOverTime: savingsOverTimeMock,
+        savingsOverTime: savingsOverTime,
       });
 
     } catch (error) {
@@ -167,8 +185,8 @@ export default function AdminReportsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Savings Trend (Mock Data)</CardTitle>
-            <CardDescription>Monthly total savings accumulation.</CardDescription>
+            <CardTitle>Savings Trend</CardTitle>
+            <CardDescription>Monthly net savings accumulation over the last 6 months.</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
              <ResponsiveContainer width="100%" height="100%">
