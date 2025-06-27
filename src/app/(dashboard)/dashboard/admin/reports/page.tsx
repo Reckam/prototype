@@ -7,8 +7,8 @@ import { BarChart3, Download, Users, Landmark, TrendingUp, PiggyBank } from "luc
 import { Button } from "@/components/ui/button";
 import { ResponsiveContainer, BarChart, XAxis, YAxis, Tooltip, Legend, Bar, PieChart, Pie, Cell } from "recharts";
 import { useEffect, useState } from "react";
-import { getUsers, getAllLoans, getSavingsByUserId, getProfitsByUserId } from "@/lib/dataService";
-import type { User as AppUser, LoanRequest, SavingTransaction, ProfitEntry } from "@/types";
+import { getUsers, getAllLoans, getAllSavings, getAllProfits } from "@/lib/dataService";
+import type { User as AppUser, LoanRequest } from "@/types";
 import { cn } from "@/lib/utils";
 
 
@@ -35,11 +35,16 @@ export default function AdminReportsPage() {
   const fetchReportData = async () => {
     setIsLoading(true);
     try {
-      const users = await getUsers();
-      const loans = await getAllLoans();
+      const [users, loans, allSavings, allProfits] = await Promise.all([
+        getUsers(),
+        getAllLoans(),
+        getAllSavings(),
+        getAllProfits(),
+      ]);
+
+      const totalSavings = allSavings.reduce((sum, s) => sum + (s.type === 'deposit' ? s.amount : -s.amount), 0);
+      const totalProfits = allProfits.reduce((sum, p) => sum + p.amount, 0);
       
-      let totalSavings = 0;
-      let totalProfits = 0;
       // Mock savings over time (last 6 months)
       const savingsOverTimeMock = Array(6).fill(0).map((_, i) => {
           const d = new Date();
@@ -47,14 +52,6 @@ export default function AdminReportsPage() {
           return { month: d.toLocaleString('default', { month: 'short' }), amount: Math.floor(Math.random() * 15000000) + 3000000 }; // UGX amounts
       }).reverse();
 
-
-      for (const user of users) {
-        const userSavings = await getSavingsByUserId(user.id);
-        const userProfits = await getProfitsByUserId(user.id);
-        totalSavings += userSavings.filter(s=>s.type === 'deposit').reduce((sum, s) => sum + s.amount, 0);
-        totalSavings -= userSavings.filter(s=>s.type === 'withdrawal').reduce((sum, s) => sum + s.amount, 0);
-        totalProfits += userProfits.reduce((sum, p) => sum + p.amount, 0);
-      }
 
       setReportData({
         totalUsers: users.length,
