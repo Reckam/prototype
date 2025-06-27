@@ -17,6 +17,7 @@ import {
   orderBy,
   limit,
   Timestamp,
+  documentId,
 } from 'firebase/firestore';
 
 // Helper to convert Firestore doc to our type, handling Timestamps
@@ -71,22 +72,29 @@ export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'contac
     throw new Error("User with this username already exists.");
   }
 
-  const newUserPayload = {
+  const newUserPayload: Omit<User, 'id'> = {
     ...userStub,
     password: "1234",
     forcePasswordChange: true,
-    createdAt: new Date(),
+    createdAt: new Date().toISOString(),
   };
 
   // Firestore doesn't accept `undefined` values.
   if (newUserPayload.profilePhotoUrl === undefined) {
     delete (newUserPayload as { profilePhotoUrl?: string }).profilePhotoUrl;
   }
+  if (newUserPayload.contact === undefined) {
+    delete (newUserPayload as { contact?: string }).contact;
+  }
+
 
   const userCol = collection(db, 'users');
-  const docRef = await addDoc(userCol, newUserPayload);
+  const docRef = await addDoc(userCol, {
+    ...newUserPayload,
+    createdAt: new Date(newUserPayload.createdAt),
+  });
   
-  return { ...userStub, id: docRef.id, createdAt: newUserPayload.createdAt.toISOString(), forcePasswordChange: true, password: "1234" };
+  return { ...newUserPayload, id: docRef.id, password: "1234" };
 };
 
 export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'createdAt'>): Promise<User> => {
@@ -101,6 +109,9 @@ export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'cr
     // Firestore doesn't accept `undefined` values.
     if (newUserPayload.profilePhotoUrl === undefined) {
         delete (newUserPayload as { profilePhotoUrl?: string }).profilePhotoUrl;
+    }
+     if (newUserPayload.contact === undefined) {
+      delete (newUserPayload as { contact?: string }).contact;
     }
     
     const docRef = await addDoc(collection(db, 'users'), newUserPayload);
@@ -148,6 +159,12 @@ export const checkUsernameAvailability = async (username: string): Promise<boole
 };
 
 // --- Savings Operations ---
+export const getAllSavings = async (): Promise<SavingTransaction[]> => {
+  const savingsCol = collection(db, 'savings');
+  const snapshot = await getDocs(savingsCol);
+  return snapshot.docs.map(doc => fromDoc<SavingTransaction>(doc));
+};
+
 export const getSavingsByUserId = async (userId: string): Promise<SavingTransaction[]> => {
   const q = query(collection(db, 'savings'), where('userId', '==', userId), orderBy('date', 'desc'));
   const snapshot = await getDocs(q);
@@ -188,6 +205,12 @@ export const updateUserSavings = async (userId: string, newTotalSavingsAmount: n
 
 
 // --- Profits Operations ---
+export const getAllProfits = async (): Promise<ProfitEntry[]> => {
+  const profitsCol = collection(db, 'profits');
+  const snapshot = await getDocs(profitsCol);
+  return snapshot.docs.map(doc => fromDoc<ProfitEntry>(doc));
+};
+
 export const getProfitsByUserId = async (userId: string): Promise<ProfitEntry[]> => {
     const q = query(collection(db, 'profits'), where('userId', '==', userId), orderBy('date', 'desc'));
     const snapshot = await getDocs(q);
@@ -212,21 +235,38 @@ export const getAllLoans = async (): Promise<LoanRequest[]> => {
     const loansCol = collection(db, 'loans');
     const q = query(loansCol, orderBy('requestedAt', 'desc'));
     const loansSnapshot = await getDocs(q);
+    const loans = loansSnapshot.docs.map(doc => fromDoc<LoanRequest>(doc));
+
+    // Efficiently fetch user names
+    const userIds = [...new Set(loans.map(loan => loan.userId))];
+
+    if (userIds.length === 0) {
+        return loans.map(l => ({ ...l, userName: 'Unknown User' }));
+    }
+
+    const usersData: { [id: string]: string } = {};
+    const userIdChunks = [];
+    // Firestore 'in' query supports up to 30 elements
+    for (let i = 0; i < userIds.length; i += 30) {
+        userIdChunks.push(userIds.slice(i, i + 30));
+    }
+
+    await Promise.all(userIdChunks.map(async chunk => {
+        const usersQuery = query(collection(db, 'users'), where(documentId(), 'in', chunk));
+        const usersSnapshot = await getDocs(usersQuery);
+        usersSnapshot.forEach(doc => {
+            usersData[doc.id] = doc.data().name || 'Unknown User';
+        });
+    }));
+
+    const loansWithUserNames = loans.map(loan => ({
+        ...loan,
+        userName: usersData[loan.userId] || 'Unknown User',
+    }));
     
-    const loansWithUserNames = await Promise.all(
-        loansSnapshot.docs.map(async (loanDoc) => {
-            const loan = fromDoc<LoanRequest>(loanDoc);
-            // Fetch user, but only necessary fields to avoid sending password to client
-            const userSnap = await getDoc(doc(db, 'users', loan.userId));
-            const userName = userSnap.exists() ? userSnap.data().name : 'Unknown User';
-            return {
-                ...loan,
-                userName,
-            };
-        })
-    );
     return loansWithUserNames;
 };
+
 
 export const addLoanRequest = async (request: Omit<LoanRequest, 'id' | 'status' | 'requestedAt' | 'userName' | 'reviewedAt'>): Promise<LoanRequest> => {
     const newRequestPayload = {

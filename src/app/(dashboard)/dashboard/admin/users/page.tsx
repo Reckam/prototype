@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getUsers, deleteUser as deleteDataUser, updateUserSavings, getSavingsByUserId, getProfitsByUserId, getLoansByUserId, addAuditLog } from "@/lib/dataService";
+import { getUsers, deleteUser as deleteDataUser, updateUserSavings, addAuditLog, getAllSavings, getAllProfits, getAllLoans } from "@/lib/dataService";
 import { useToast } from "@/hooks/use-toast";
 import type { User, Admin } from "@/types";
 import { Users, PlusCircle, Edit, Trash2, RefreshCw } from "lucide-react";
@@ -44,20 +44,40 @@ export default function ManageUsersPage() {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      const basicUsers = await getUsers();
-      const usersWithDetails = await Promise.all(
-        basicUsers.map(async (user) => {
-          const [savings, profits, loans] = await Promise.all([
-            getSavingsByUserId(user.id),
-            getProfitsByUserId(user.id),
-            getLoansByUserId(user.id),
-          ]);
-          const totalSavings = savings.reduce((acc, s) => acc + (s.type === 'deposit' ? s.amount : -s.amount), 0);
-          const totalProfits = profits.reduce((acc, p) => acc + p.amount, 0);
-          const activeLoans = loans.filter(l => l.status === 'pending' || l.status === 'approved').length;
-          return { ...user, totalSavings, totalProfits, activeLoans };
-        })
-      );
+      const [basicUsers, allSavings, allProfits, allLoans] = await Promise.all([
+          getUsers(),
+          getAllSavings(),
+          getAllProfits(),
+          getAllLoans(),
+      ]);
+
+      const savingsByUser = allSavings.reduce((acc, s) => {
+          if (!acc[s.userId]) acc[s.userId] = 0;
+          acc[s.userId] += (s.type === 'deposit' ? s.amount : -s.amount);
+          return acc;
+      }, {} as Record<string, number>);
+
+      const profitsByUser = allProfits.reduce((acc, p) => {
+          if (!acc[p.userId]) acc[p.userId] = 0;
+          acc[p.userId] += p.amount;
+          return acc;
+      }, {} as Record<string, number>);
+
+      const activeLoansByUser = allLoans.reduce((acc, l) => {
+          if (l.status === 'pending' || l.status === 'approved') {
+              if (!acc[l.userId]) acc[l.userId] = 0;
+              acc[l.userId]++;
+          }
+          return acc;
+      }, {} as Record<string, number>);
+
+      const usersWithDetails = basicUsers.map(user => ({
+          ...user,
+          totalSavings: savingsByUser[user.id] || 0,
+          totalProfits: profitsByUser[user.id] || 0,
+          activeLoans: activeLoansByUser[user.id] || 0,
+      }));
+      
       setUsers(usersWithDetails);
     } catch (error) {
       console.error("Failed to fetch users:", error);

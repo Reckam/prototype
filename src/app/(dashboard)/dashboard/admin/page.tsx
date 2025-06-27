@@ -8,8 +8,8 @@ import { Users, Landmark, FileClock, PlusCircle, ArrowRight, PiggyBank, Trending
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getCurrentAdmin } from "@/lib/authService";
-import type { Admin, AuditLogEntry, SavingTransaction } from "@/types";
-import { getAllLoans, getAuditLogs, getUsers, getSavingsByUserId, getProfitsByUserId } from "@/lib/dataService"; 
+import type { Admin, AuditLogEntry } from "@/types";
+import { getAllLoans, getAuditLogs, getUsers, getAllSavings, getAllProfits } from "@/lib/dataService"; 
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 
 export default function AdminDashboardPage() {
@@ -36,47 +36,42 @@ export default function AdminDashboardPage() {
   const fetchAdminDashboardData = async () => {
     setIsLoading(true);
     try {
-      const [users, loans, logs] = await Promise.all([
+      const [users, loans, logs, allSavings, allProfits] = await Promise.all([
         getUsers(),
         getAllLoans(),
         getAuditLogs(),
+        getAllSavings(),
+        getAllProfits(),
       ]);
 
       setTotalUsers(users.length);
       setPendingLoansCount(loans.filter(loan => loan.status === 'pending').length);
       setRecentLogs(logs.slice(0, 5));
-
-      let systemSavings = 0;
-      let weeklySavings = 0;
-      let monthlySavings = 0;
-      let systemProfits = 0;
-
+      
       const now = new Date();
       const weekStart = startOfWeek(now);
       const weekEnd = endOfWeek(now);
       const monthStart = startOfMonth(now);
       const monthEnd = endOfMonth(now);
 
-      for (const user of users) {
-        const userSavingsTransactions = await getSavingsByUserId(user.id);
-        const userProfits = await getProfitsByUserId(user.id);
-        
-        for (const s of userSavingsTransactions) {
-          const transactionDate = parseISO(s.date);
-          const amount = s.type === 'deposit' ? s.amount : -s.amount;
-          systemSavings += amount;
+      let systemSavings = 0;
+      let weeklySavings = 0;
+      let monthlySavings = 0;
 
-          if (isWithinInterval(transactionDate, { start: weekStart, end: weekEnd })) {
+      for (const s of allSavings) {
+        const transactionDate = parseISO(s.date);
+        const amount = s.type === 'deposit' ? s.amount : -s.amount;
+        systemSavings += amount;
+        if (isWithinInterval(transactionDate, { start: weekStart, end: weekEnd })) {
             weeklySavings += amount;
-          }
-          if (isWithinInterval(transactionDate, { start: monthStart, end: monthEnd })) {
-            monthlySavings += amount;
-          }
         }
-        
-        systemProfits += userProfits
-          .reduce((acc, curr) => acc + curr.amount, 0);
+        if (isWithinInterval(transactionDate, { start: monthStart, end: monthEnd })) {
+            monthlySavings += amount;
+        }
       }
+      
+      const systemProfits = allProfits.reduce((acc, curr) => acc + curr.amount, 0);
+
       setTotalSystemSavings(systemSavings);
       setTotalWeeklySavings(weeklySavings);
       setTotalMonthlySavings(monthlySavings);
