@@ -93,11 +93,11 @@ export default function AddUserPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="username">Username (Email)</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
                 id="username"
-                type="email" 
-                placeholder="user_jane_doe@example.com" 
+                type="text" 
+                placeholder="e.g., janedoe" 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required

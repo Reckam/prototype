@@ -1,18 +1,18 @@
 
 export interface User {
   id: string;
-  username: string; // Stored as 'email' in Supabase
+  username: string; 
   name: string;
-  contact?: string; // Added for contact number
+  contact?: string; 
   createdAt: string;
-  profilePhotoUrl?: string; // Added for profile photo
-  password?: string; // Added for storing mock password
-  forcePasswordChange?: boolean; // Added for first login flow
+  profilePhotoUrl?: string; 
+  password?: string; 
+  forcePasswordChange?: boolean; 
 }
 
 export interface Admin {
   id: string;
-  email:string; // Admin still uses email
+  username:string; 
   name: string;
 }
 

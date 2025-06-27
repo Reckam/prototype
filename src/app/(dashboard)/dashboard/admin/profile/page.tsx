@@ -1,3 +1,4 @@
+
 "use client";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -11,13 +12,13 @@ import { getCurrentAdmin, loginAdmin } from "@/lib/authService"; // Assuming log
 import { useToast } from "@/hooks/use-toast";
 import type { Admin } from "@/types";
 // Admin profile updates (name/email) would typically go to a secure admin management endpoint.
-// For this mock, we'll assume there's no direct update mechanism for admin name/email via UI for simplicity.
+// For this mock, we'll assume there's no direct update mechanism for admin name/username via UI for simplicity.
 
 export default function AdminProfilePage() {
   const [admin, setAdmin] = useState<Admin | null>(null);
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  // const [isEditing, setIsEditing] = useState(false); // Name/Email editing kept disabled as per original logic.
+  const [username, setUsername] = useState("");
+  // const [isEditing, setIsEditing] = useState(false); // Name/Username editing kept disabled as per original logic.
   
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -33,7 +34,7 @@ export default function AdminProfilePage() {
     if (currentAdmin) {
       setAdmin(currentAdmin);
       setName(currentAdmin.name);
-      setEmail(currentAdmin.email);
+      setUsername(currentAdmin.username);
     }
     setIsLoading(false);
   }, []);
@@ -41,7 +42,7 @@ export default function AdminProfilePage() {
   // const handleSaveProfile = async () => {
   //   // Admin profile updates are typically more restricted and handled differently.
   //   // For this mock, we'll just show a toast message.
-  //   toast({ title: "Profile Update (Mock)", description: "Admin name/email updates would be handled by a super-admin or system process." });
+  //   toast({ title: "Profile Update (Mock)", description: "Admin name/username updates would be handled by a super-admin or system process." });
   //   setIsEditing(false);
   // };
 
@@ -50,7 +51,7 @@ export default function AdminProfilePage() {
       toast({ variant: "destructive", title: "Error", description: "Admin not found." });
       return;
     }
-    if (admin.email === "admin" && currentPassword !== "0000") {
+    if (admin.username === "admin" && currentPassword !== "0000") {
       toast({ variant: "destructive", title: "Password Update Failed", description: "Current password incorrect." });
       return;
     }
@@ -103,7 +104,7 @@ export default function AdminProfilePage() {
         <h1 className="text-2xl font-semibold flex items-center">
           <ShieldCheck className="mr-3 h-6 w-6 text-primary" /> Admin Profile
         </h1>
-        {/* Name/Email editing button remains commented out as per original logic (not part of this request)
+        {/* Name/Username editing button remains commented out as per original logic (not part of this request)
         <Button onClick={isEditing ? handleSaveProfile : () => setIsEditing(true)} disabled={isLoading && isEditing}>
           {isEditing ? (
             isLoading ? <><Save className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <><Save className="mr-2 h-4 w-4" /> Save Changes</>
@@ -130,12 +131,12 @@ export default function AdminProfilePage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Email Address (Username)</Label>
+            <Label htmlFor="username">Username</Label>
             <Input
-              id="email"
-              type="email"
-              value={email}
-              disabled // Keep email editing disabled
+              id="username"
+              type="text"
+              value={username}
+              disabled // Keep username editing disabled
               className="text-base bg-muted"
             />
           </div>
@@ -195,7 +196,7 @@ export default function AdminProfilePage() {
                 )}
               </Button>
               <p className="text-xs text-muted-foreground">
-                {admin.email === "admin" 
+                {admin.username === "admin" 
                   ? "For the default 'admin' user, the current password is '0000'. " 
                   : "Enter your current password to set a new one. "}
                 Password change functionality is for demonstration.
@@ -207,4 +208,3 @@ export default function AdminProfilePage() {
     </DashboardLayout>
   );
 }
-

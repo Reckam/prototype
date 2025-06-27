@@ -105,7 +105,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
 
   const navItems = role === "user" ? userNavItems : adminNavItems;
   const profileName = role === "user" ? currentUser?.name : currentAdmin?.name;
-  const profileIdentifier = role === "user" ? currentUser?.username : currentAdmin?.email; 
+  const profileIdentifier = role === "user" ? currentUser?.username : currentAdmin?.username; 
   const profileRoleIcon = role === "user" ? UserCircle : ShieldCheck;
   // Use profilePhotoDataUrl from user state for AvatarImage src
   const profilePhotoToDisplay = role === "user" ? currentUser?.profilePhotoUrl : undefined;

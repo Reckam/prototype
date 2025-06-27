@@ -231,7 +231,7 @@ export default function UserProfilePage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="username">Username (Email)</Label>
+            <Label htmlFor="username">Username</Label>
             <Input
               id="username"
               type="text"

@@ -115,7 +115,7 @@ export const loginAdmin = async (
   password: string
 ): Promise<{ admin?: Admin; error?: string }> => {
   if (adminUsername === "admin" && password === "0000") {
-      const adminToStore = { id: 'mock-admin-1', name: 'Super Admin', email: 'admin' };
+      const adminToStore = { id: 'mock-admin-1', name: 'Super Admin', username: 'admin' };
       if (typeof window !== 'undefined') {
           localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminToStore));
       }

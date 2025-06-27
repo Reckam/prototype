@@ -7,10 +7,10 @@ const APP_DATA_KEY = 'savings_central_app_data';
 
 const getInitialData = (): AppData => ({
   users: [
-    { id: 'mock-user-1', name: 'Default User', username: 'user@example.com', password: 'password', contact: '0770123456', profilePhotoUrl: undefined, createdAt: new Date().toISOString(), forcePasswordChange: false }
+    { id: 'mock-user-1', name: 'Default User', username: 'user', password: 'password', contact: '0770123456', profilePhotoUrl: undefined, createdAt: new Date().toISOString(), forcePasswordChange: false }
   ],
   admins: [
-    { id: 'mock-admin-1', name: 'Super Admin', email: 'admin' }
+    { id: 'mock-admin-1', name: 'Super Admin', username: 'admin' }
   ],
   savings: [],
   profits: [],
@@ -272,15 +272,3 @@ export const addAuditLog = async (logEntry: Omit<AuditLogEntry, 'id'>): Promise<
     setMockData(data);
     return newLog;
 };
-
-// Real-time subscriptions are not applicable in a local-only setup.
-// Components should re-fetch data after performing actions.
-export const subscribeToTable = (tableName: string, callback: (payload: any) => void) => {
-    console.log(`Mock subscription to ${tableName}. This does nothing in local mode.`);
-    return { unsubscribe: () => {} };
-};
-export const subscribeToSavings = (callback: (change: any) => void) => subscribeToTable('savings', callback);
-export const subscribeToProfits = (callback: (change: any) => void) => subscribeToTable('profits', callback);
-export const subscribeToLoans = (callback: (change: any) => void) => subscribeToTable('loans', callback);
-export const subscribeToAuditLogs = (callback: (change: any) => void) => subscribeToTable('audit_logs', callback);
-export const subscribeToUsers = (callback: (change: any) => void) => subscribeToTable('users', callback);

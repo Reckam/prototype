@@ -86,11 +86,11 @@ export default function UserRegisterPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="username">Username (Email)</Label>
+            <Label htmlFor="username">Username</Label>
             <Input
               id="username"
-              type="email"
-              placeholder="your_email@example.com"
+              type="text"
+              placeholder="e.g., johndoe"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required

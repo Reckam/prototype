@@ -109,7 +109,7 @@ export default function ManageSavingsRecordsPage() {
 
   const filteredUsers = usersWithSavings.filter(user =>
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.username.toLowerCase().includes(searchTerm.toLowerCase()) // Changed from user.email
+    user.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
 
@@ -154,7 +154,7 @@ export default function ManageSavingsRecordsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>User Name</TableHead>
-                  <TableHead>Username</TableHead> {/* Changed from Email */}
+                  <TableHead>Username</TableHead>
                   <TableHead className="text-right">Total Savings</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -163,7 +163,7 @@ export default function ManageSavingsRecordsPage() {
                 {filteredUsers.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell>{user.username}</TableCell> {/* Changed from user.email */}
+                    <TableCell>{user.username}</TableCell>
                     <TableCell className="text-right">{formatCurrency(user.totalSavings)}</TableCell>
                     <TableCell className="text-right">
                       <Dialog>
