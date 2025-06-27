@@ -1,5 +1,21 @@
 'use client';
 
+/**
+ * @fileoverview Data service for interacting with the Supabase database.
+ * 
+ * IMPORTANT: All functions in this file assume that you have configured
+ * appropriate Row Level Security (RLS) policies in your Supabase project.
+ * By default, all tables are protected and will deny requests from the browser.
+ * 
+ * For development, you can create a permissive policy that allows all actions:
+ * 1. Go to Authentication > Policies in your Supabase dashboard.
+ * 2. For each table, create a new policy.
+ * 3. Set the "Allowed operation" to ALL.
+ * 4. Use `true` for both the "USING expression" and "WITH CHECK expression".
+ * 
+ * For production, you should create more restrictive policies.
+ */
+
 import type { User, Admin, SavingTransaction, ProfitEntry, LoanRequest, AuditLogEntry, LoanStatus } from '@/types';
 import { supabase } from '@/supabaseClient';
 
