@@ -78,6 +78,11 @@ export const addUser = async (userStub: Pick<User, 'name' | 'username' | 'contac
     createdAt: new Date(),
   };
 
+  // Firestore doesn't accept `undefined` values.
+  if (newUserPayload.profilePhotoUrl === undefined) {
+    delete (newUserPayload as { profilePhotoUrl?: string }).profilePhotoUrl;
+  }
+
   const userCol = collection(db, 'users');
   const docRef = await addDoc(userCol, newUserPayload);
   
@@ -92,6 +97,12 @@ export const createUserFromRegistration = async (userData: Omit<User, 'id' | 'cr
       ...userData,
       createdAt: new Date(),
     };
+
+    // Firestore doesn't accept `undefined` values.
+    if (newUserPayload.profilePhotoUrl === undefined) {
+        delete (newUserPayload as { profilePhotoUrl?: string }).profilePhotoUrl;
+    }
+    
     const docRef = await addDoc(collection(db, 'users'), newUserPayload);
     return { ...userData, id: docRef.id, createdAt: newUserPayload.createdAt.toISOString() };
 };
