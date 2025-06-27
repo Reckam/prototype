@@ -1,105 +1,80 @@
 
 "use client";
-import { supabase } from "@/supabaseClient";
-import type { User as SupabaseUserType } from "@supabase/supabase-js";
-import { getAdmins, addAuditLog, createUserFromRegistration as createDataUser, getUserById as getDataUserById, updateUser as updateDataUser } from "./dataService";
 import type { User, Admin } from "@/types"; // Local User type
 import { USER_STORAGE_KEY, ADMIN_STORAGE_KEY } from "./constants";
 
+// --- MOCK IN-MEMORY DATABASE ---
+// This will reset every time the server restarts or the file is reloaded.
+const mockUsers: User[] = [
+  {
+    id: 'mock-user-1',
+    name: 'Default User',
+    username: 'user@example.com',
+    password: 'password', // Storing plain text password (MOCK ONLY)
+    contact: '123-456-7890',
+    profilePhotoUrl: undefined,
+    createdAt: new Date().toISOString(),
+    forcePasswordChange: false,
+  }
+];
 
-// Register User (Custom Logic)
+const mockAdmins: Admin[] = [
+  { id: 'mock-admin-1', name: 'Super Admin', email: 'admin' }
+];
+
+// --- Mocked Auth Functions ---
+
+// Register User (Mock Logic)
 export const registerUser = async (
   name: string,
-  username: string, 
+  username: string,
   password: string,
   contact?: string,
   profilePhotoDataUrl?: string
 ): Promise<{ user?: User; error?: string }> => {
-  try {
-    // Check if email (acting as username) already exists
-    const { data: existingUser } = await supabase.from('users').select('email').eq('email', username).maybeSingle();
-    if (existingUser) {
-      return { error: "An account with this email/username already exists." };
-    }
-
-    // In a real app, password would be hashed here before storing
-    const newUser: Omit<User, 'id' | 'createdAt'> = {
-      name,
-      username,
-      password: password, // Storing plain text password (MOCK ONLY)
-      contact,
-      profilePhotoUrl: profilePhotoDataUrl,
-      forcePasswordChange: false,
-    };
-
-    const createdUser = await createDataUser(newUser);
-
-    // Audit Log
-    const admins = await getAdmins();
-    if (admins.length > 0) {
-      const admin = admins[0]; // Assuming first admin for logging
-      await addAuditLog({
-        adminId: admin.id,
-        adminName: admin.name,
-        action: `New user registered: ${username}`,
-        timestamp: new Date().toISOString(),
-        details: { username, name },
-      });
-    }
-
-    return { user: createdUser };
-  } catch (e: any) {
-    console.error("Registration error:", e);
-    return { error: e.message || "Registration failed." };
+  console.log("MOCK AUTH: registerUser called");
+  if (mockUsers.find(u => u.username === username)) {
+    return { error: "An account with this username already exists." };
   }
+  
+  const newUser: User = {
+    id: `mock-user-${Date.now()}`,
+    name,
+    username,
+    password, // Storing plain text password (MOCK ONLY)
+    contact,
+    profilePhotoUrl: profilePhotoDataUrl,
+    createdAt: new Date().toISOString(),
+    forcePasswordChange: false,
+  };
+  
+  mockUsers.push(newUser);
+  console.log("MOCK AUTH: New user added to mock database:", newUser);
+  console.log("MOCK AUTH: Current mock users:", mockUsers);
+  
+  // Returning the user object but without password
+  const { password: _, ...userToReturn } = newUser;
+  return { user: userToReturn as User };
 };
 
-// Login User (Custom Logic)
+// Login User (Mock Logic)
 export const loginUser = async (
-  username: string, // User enters their email in the username field
+  username: string,
   password: string
-): Promise<{ user?: User; error?: string }> => {
-  try {
-    const { data: users, error: fetchError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', username); // Query against the 'email' column
+): Promise<{ user?: User; error?:string }> => {
+  console.log("MOCK AUTH: loginUser called for username:", username);
+  const user = mockUsers.find(u => u.username === username);
 
-    if (fetchError) {
-      console.error("Login fetch error:", fetchError);
-      return { error: "Error fetching user data." };
-    }
-    if (!users || users.length === 0) {
-      return { error: "Invalid username or password." };
-    }
-
-    const user = users[0];
-
-    // MOCK: Plain text password comparison
-    if (user.password !== password) {
-      return { error: "Invalid username or password." };
-    }
-
-    const userToStore: User = {
-        id: user.id,
-        name: user.name,
-        username: user.email, // Map 'email' from DB to 'username' for the app
-        contact: user.contact,
-        profilePhotoUrl: user.profile_photo_url,
-        createdAt: user.created_at,
-        forcePasswordChange: user.force_password_change,
-        // Do NOT store password in localStorage
-    };
-
-
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userToStore));
-    }
-    return { user: userToStore };
-  } catch (e: any) {
-    console.error("Login error:", e);
-    return { error: e.message || "Login failed." };
+  if (!user || user.password !== password) {
+    return { error: "Invalid username or password." };
   }
+
+  const { password: _, ...userToStore } = user;
+
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userToStore));
+  }
+  return { user: userToStore as User };
 };
 
 // Logout User
@@ -130,7 +105,6 @@ export const getCurrentUser = (): User | null => {
 export const updateUserInSession = (updatedUser: User): void => {
   if (typeof window !== 'undefined') {
     const userToStore = { ...updatedUser };
-    // Ensure password is not stored in session
     if ('password' in userToStore) {
         delete (userToStore as any).password;
     }
@@ -138,82 +112,56 @@ export const updateUserInSession = (updatedUser: User): void => {
   }
 };
 
-
-// Request Password Reset (Custom Logic - Mock)
+// Request Password Reset (Mock Logic)
 export const requestPasswordReset = async (
-  username: string // User enters their email here
+  username: string
 ): Promise<{ success: boolean; message: string }> => {
-  // This is a MOCK. In a real app with Supabase Auth, you'd use supabase.auth.resetPasswordForEmail().
-  // With custom auth, you'd implement your own token generation and email sending.
-  console.log(`Password reset requested for username/email: ${username}. (Mock function)`);
-  const msg = `If an account with email ${username} exists, a (mock) reset link would be sent.`;
-  // Simulate checking if user exists by querying the email column
-  const { data: users, error } = await supabase.from('users').select('id').eq('email', username);
-  if (error) {
-    console.error("Error checking user for password reset:", error);
-    // Don't reveal if user exists for security, generic message is better
-  }
-  return { success: true, message: msg }; // Always return generic success for security
+  console.log(`MOCK AUTH: Password reset requested for username: ${username}.`);
+  const msg = `If a mock account with username ${username} exists, a (mock) reset link would be sent.`;
+  return { success: true, message: msg };
 };
 
-// Change User Password (Custom Logic)
+// Change User Password (Mock Logic)
 export const changeUserPassword = async (
   userId: string,
   currentPasswordAttempt: string,
   newPassword: string
-): Promise<{ success: boolean; message: string }> => {
-  try {
-    const user = await getDataUserById(userId);
-    if (!user || !user.password) { // Check if user and password exist
-      return { success: false, message: "User not found or password not set." };
-    }
-
-    // MOCK: Plain text password comparison
-    if (user.password !== currentPasswordAttempt) {
-      return { success: false, message: "Current password incorrect." };
-    }
-
-    // In a real app, hash newPassword before storing
-    const updatedUser = await updateDataUser(userId, { password: newPassword });
-    if (updatedUser) {
-        // Update user in session if password change affects session (e.g. forcePasswordChange flag)
-        const sessionUser = getCurrentUser();
-        if (sessionUser && sessionUser.id === userId) {
-            updateUserInSession({...sessionUser, password: newPassword }); // Update mock password in session if needed, usually not
-        }
-      return { success: true, message: "Password updated successfully." };
-    } else {
-      return { success: false, message: "Failed to update password in database." };
-    }
-  } catch (e: any) {
-    console.error("Change password error:", e);
-    return { success: false, message: e.message || "Failed to change password." };
+): Promise<{ success: boolean; message:string }> => {
+  console.log(`MOCK AUTH: changeUserPassword called for userId: ${userId}`);
+  const userIndex = mockUsers.findIndex(u => u.id === userId);
+  
+  if (userIndex === -1) {
+    return { success: false, message: "User not found." };
   }
+  
+  const user = mockUsers[userIndex];
+  if (user.password !== currentPasswordAttempt) {
+    return { success: false, message: "Current password incorrect." };
+  }
+  
+  mockUsers[userIndex].password = newPassword;
+  console.log(`MOCK AUTH: Password for ${user.username} updated.`);
+  
+  return { success: true, message: "Password updated successfully." };
 };
 
-// Admin Login (Custom Logic)
+// Admin Login (Mock Logic)
 export const loginAdmin = async (
-  adminUsername: string, // This is an email for admins
+  adminUsername: string,
   password: string
 ): Promise<{ admin?: Admin; error?: string }> => {
-  try {
-    // For this mock, we assume 'admin' is the username and '0000' is the password for the first admin
-    // This would typically query an 'admins' table or check a role on a 'users' table
-    const admins = await getAdmins(); // Assuming getAdmins can fetch admin records
-    const admin = admins.find(a => a.email === adminUsername); // Using email as username for admin
-
-    if (admin && adminUsername === "admin" && password === "0000") { // Hardcoded for mock
-      const adminToStore = { id: admin.id, name: admin.name, email: admin.email };
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminToStore));
-      }
-      return { admin: adminToStore };
-    } else {
-      return { error: "Invalid admin credentials." };
+  console.log(`MOCK AUTH: loginAdmin called for username: ${adminUsername}`);
+  const admin = mockAdmins.find(a => a.email === adminUsername);
+  
+  // Using a simple check for the mock admin
+  if (admin && password === "0000") {
+    const adminToStore = { id: admin.id, name: admin.name, email: admin.email };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminToStore));
     }
-  } catch (e: any) {
-    console.error("Admin login error:", e);
-    return { error: e.message || "Admin login failed." };
+    return { admin: adminToStore };
+  } else {
+    return { error: "Invalid admin credentials." };
   }
 };
 
@@ -233,7 +181,7 @@ export const getCurrentAdmin = (): Admin | null => {
         return JSON.parse(storedAdmin) as Admin;
       } catch (e) {
         console.error("Error parsing stored admin:", e);
-        localStorage.removeItem(ADMIN_STORAGE_KEY); // Clear corrupted data
+        localStorage.removeItem(ADMIN_STORAGE_KEY);
         return null;
       }
     }
@@ -241,54 +189,39 @@ export const getCurrentAdmin = (): Admin | null => {
   return null;
 };
 
-// Complete Initial Setup (Username and Password Change)
+// Complete Initial Setup (Mock Logic)
 export const completeInitialSetup = async (
   userId: string,
-  newUsername: string, // This is an email
+  newUsername: string,
   newPassword: string
 ): Promise<{ user?: User; error?: string }> => {
-  try {
-    const currentUser = await getDataUserById(userId);
-    if (!currentUser) {
-      return { error: "User not found." };
-    }
-
-    const updates: Partial<User> = {
-      password: newPassword, // In real app, hash this
-      forcePasswordChange: false,
-    };
-
-    if (newUsername !== currentUser.username) {
-        // Check if new username (email) is taken
-        const { data: existingUserWithNewUsername, error: checkError } = await supabase
-            .from('users')
-            .select('id')
-            .eq('email', newUsername) // Query 'email' column
-            .neq('id', userId) // Important: Exclude current user from check
-            .maybeSingle();
-
-        if (checkError && checkError.code !== 'PGRST116') { // PGRST116: no rows found
-             console.error("Error checking username availability:", checkError);
-             return { error: "Failed to check username availability." };
-        }
-        if (existingUserWithNewUsername) {
-            return { error: "Username is already taken. Please choose another." };
-        }
-        updates.username = newUsername;
-    }
-
-
-    const updatedUser = await updateDataUser(userId, updates);
-
-    if (updatedUser) {
-      // Update the user details in localStorage/session
-      updateUserInSession(updatedUser);
-      return { user: updatedUser };
-    } else {
-      return { error: "Failed to update credentials." };
-    }
-  } catch (e: any) {
-    console.error("Complete initial setup error:", e);
-    return { error: e.message || "Failed to complete setup." };
+  console.log(`MOCK AUTH: completeInitialSetup for userId: ${userId}`);
+  const userIndex = mockUsers.findIndex(u => u.id === userId);
+  
+  if (userIndex === -1) {
+    return { error: "User not found." };
   }
+  
+  if (newUsername !== mockUsers[userIndex].username) {
+    if (mockUsers.some(u => u.username === newUsername)) {
+      return { error: "Username is already taken." };
+    }
+    mockUsers[userIndex].username = newUsername;
+  }
+  
+  mockUsers[userIndex].password = newPassword;
+  mockUsers[userIndex].forcePasswordChange = false;
+
+  const { password: _, ...updatedUser } = mockUsers[userIndex];
+  updateUserInSession(updatedUser as User);
+
+  return { user: updatedUser as User };
+};
+
+// Check Username Availability (Mock Logic)
+export const checkUsernameAvailability = async (username: string): Promise<boolean> => {
+  console.log(`MOCK AUTH: Checking availability for username: ${username}`);
+  const isAvailable = !mockUsers.some(u => u.username === username);
+  console.log(`MOCK AUTH: Username "${username}" is available: ${isAvailable}`);
+  return isAvailable;
 };
